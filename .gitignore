@@ -1,0 +1,7 @@
+.venv/
+
+.vscode/*
+
+__pycache__/
+
+rosbag_metadata.db
