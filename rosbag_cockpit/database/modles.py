@@ -4,29 +4,31 @@ Database models for the Cockpit application.
 This module defines the SQLite table structures as Python classes.
 """
 
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 import json
+from datetime import datetime
+from typing import Any, Dict, List
 
 
 class RosbagMetadata:
     """Represents a ROS bag metadata entry in the database."""
-    
-    def __init__(self, 
-                 file_path: str,
-                 map_category: str,
-                 start_time: datetime,
-                 end_time: datetime,
-                 duration: float,
-                 size_mb: float,
-                 message_count: int,
-                 topic_count: int,
-                 topics_json: str,
-                 metadata_json: str,
-                 **additional_fields: Any):
+
+    def __init__(
+        self,
+        file_path: str,
+        map_category: str,
+        start_time: datetime,
+        end_time: datetime,
+        duration: float,
+        size_mb: float,
+        message_count: int,
+        topic_count: int,
+        topics_json: str,
+        metadata_json: str,
+        **additional_fields: Any,
+    ):
         """
         Initialize a RosbagMetadata object.
-        
+
         Args:
             file_path: Path to the ROS bag file
             map_category: Category of map (skidpad, acceleration, autox, track_driver)
@@ -50,21 +52,21 @@ class RosbagMetadata:
         self.topic_count = topic_count
         self.topics_json = topics_json
         self.metadata_json = metadata_json
-        
+
         # Add any additional fields
         for key, value in additional_fields.items():
             setattr(self, key, value)
-    
+
     @property
     def topics(self) -> List[str]:
         """Get the list of topics from the JSON string."""
         return json.loads(self.topics_json)
-    
+
     @property
     def metadata(self) -> Dict[str, Any]:
         """Get the additional metadata as a dictionary."""
         return json.loads(self.metadata_json)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert the object to a dictionary for database insertion."""
         result = {
@@ -77,26 +79,28 @@ class RosbagMetadata:
             "message_count": self.message_count,
             "topic_count": self.topic_count,
             "topics_json": self.topics_json,
-            "metadata_json": self.metadata_json
+            "metadata_json": self.metadata_json,
         }
-        
+
         # Add any additional attributes
         for attr in dir(self):
-            if (not attr.startswith('_') and 
-                attr not in result and 
-                attr not in ['topics', 'metadata', 'to_dict']):
+            if (
+                not attr.startswith("_")
+                and attr not in result
+                and attr not in ["topics", "metadata", "to_dict"]
+            ):
                 result[attr] = getattr(self, attr)
-                
+
         return result
 
 
 class SchemaModification:
     """Represents a schema modification entry in the database."""
-    
+
     def __init__(self, column_name: str, data_type: str):
         """
         Initialize a SchemaModification object.
-        
+
         Args:
             column_name: Name of the column
             data_type: SQLite data type for the column

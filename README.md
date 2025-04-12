@@ -1,3 +1,6 @@
+# install uv
+pip3 install uv
+
 # Create a virtual environment with access to system packages (including ROS packages)
 uv venv --system-site-packages
 
@@ -15,7 +18,7 @@ add following to `launch.json`
     "configurations": [
         {
             "name": "Python: Main Script",
-            "type": "python", 
+            "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
             "justMyCode": true,

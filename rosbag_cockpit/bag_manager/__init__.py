@@ -8,4 +8,9 @@ from .parser import RosbagParser
 from .player import RosbagPlayer
 from .utils import determine_map_category, sanitize_topic_name
 
-__all__ = ["RosbagParser", "RosbagPlayer", "determine_map_category", "sanitize_topic_name"]
+__all__ = [
+    "RosbagParser",
+    "RosbagPlayer",
+    "determine_map_category",
+    "sanitize_topic_name",
+]
