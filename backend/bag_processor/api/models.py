@@ -63,7 +63,7 @@ class Rosbag(BaseModel):
     created_at: Optional[str] = Field(None, description="Creation timestamp")
 
     # Add a field to store topic count data
-    topic_counts: Dict[str, int] = Field(default_factory=dict, description="Topic message counts")
+    topic_counts: Dict[str, Optional[int]] = Field(default_factory=dict, description="Topic message counts")
 
     model_config = {"extra": "ignore"}  # Allow extra fields to be set during initialization
 

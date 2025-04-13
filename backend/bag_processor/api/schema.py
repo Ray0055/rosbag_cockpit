@@ -16,7 +16,7 @@ def from_dict_to_database_stats(data: dict) -> DatabaseStats:
     return DatabaseStats(**data)
 
 
-def from_dict_to_rosbag(data: dict) -> List[Rosbag]:
+def from_dict_to_rosbag(data: List[dict]) -> List[Rosbag]:
     """
     Convert a dictionary to a list of Rosbag objects.
 
@@ -26,8 +26,8 @@ def from_dict_to_rosbag(data: dict) -> List[Rosbag]:
     Returns:
         List of Rosbag objects
     """
-    print("Data:", data)
     return [Rosbag(**item) for item in data]
+
 
 
 # def get_rosbag()

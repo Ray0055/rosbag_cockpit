@@ -24,7 +24,7 @@ class RosbagParser:
         """Initialize the ROS bag parser."""
         pass
 
-    def parse_bag_file(self, bag_folder_path: str) -> Optional[RosbagMetadata]:
+    def parse_bag_folder(self, bag_folder_path: str) -> Optional[RosbagMetadata]:
         """
         Parse a ROS bag file and extract metadata.
 
@@ -94,11 +94,11 @@ class RosbagParser:
         """
         with open(bag_path + "/metadata.yaml", "r") as f:
             metadata = yaml.safe_load(f)
-            metadata = self._convert_metaData_toRosbagMetadata(metadata, file_size)
+            metadata = self._convert_metaData_toRosbagMetadata(metadata, file_size, bag_path)
             return metadata
 
     def _convert_metaData_toRosbagMetadata(
-        self, metadata: Dict[str, Any], file_size
+        self, metadata: Dict[str, Any], file_size: float, bag_folder_path: str = ""
     ) -> RosbagMetadata:
         """
         Convert metadata dictionary to RosbagMetadata object.
@@ -145,7 +145,7 @@ class RosbagParser:
 
         # 创建RosbagMetadata对象
         rosbag_metadata = RosbagMetadata(
-            file_path="",
+            file_path=bag_folder_path,
             map_category="",
             start_time=start_time,
             end_time=end_time,
@@ -231,16 +231,28 @@ class RosbagParser:
             print(f"Error: Directory does not exist: {directory_path}")
             return []
 
+        # check the directory structure is correct
+        subdirectories = [
+            "skidpad",
+            "trackdrive",
+            "autox",
+            "acceleration",
+            "undefined",
+        ]
+        for subdir in subdirectories:
+            if not os.path.exists(os.path.join(directory_path, subdir)):
+                raise ValueError(
+                    f"Directory structure is incorrect, expected: {directory_path}/{subdir}"
+                )
+    
         result = []
-        for root, dirs, files in os.walk(directory_path):
-            for file in files:
-                if file.endswith(".bag"):
-                    bag_path = os.path.join(root, file)
-                    metadata = self.parse_bag_file(bag_path)
-                    if metadata:
-                        result.append(metadata)
-
-            if not recursive:
-                break
+        for subdir in subdirectories:
+            subdir_path = os.path.join(directory_path, subdir)
+            res = next(os.walk(subdir_path))
+            _, dirs, files = res
+            for dir in dirs:
+                metadata = self.parse_bag_folder(os.path.join(subdir_path, dir))
+                if metadata:
+                    result.append(metadata)
 
         return result

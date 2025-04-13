@@ -112,7 +112,7 @@ class DatabaseManager:
         ]
 
         sql = f"""
-        INSERT OR REPLACE INTO rosbags ({column_names})
+        INSERT INTO rosbags ({column_names})
         VALUES ({placeholders})
         """
 
