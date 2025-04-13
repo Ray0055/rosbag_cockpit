@@ -13,7 +13,9 @@ dependencies = [
     "pyyaml",
     "pydantic",
     "uvicorn",
-    "sqlalchemy"
+    "sqlalchemy",
+    "fastapi",
+    "pytest==6.2.5",
 ]
 
 [project.scripts]

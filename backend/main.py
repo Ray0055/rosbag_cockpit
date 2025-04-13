@@ -10,8 +10,8 @@ import argparse
 import os
 import sys
 
-from .bag_processor.bag_manager.parser import RosbagParser
-from .bag_processor.database import DatabaseManager
+from bag_processor.bag_manager.parser import RosbagParser
+from bag_processor.database import DatabaseManager
 
 
 def parse_args():
@@ -64,7 +64,7 @@ def main():
                 return 1
 
             print(f"Processing bag file: {args.bag}")
-            metadata = parser.parse_bag_file(args.bag)
+            metadata = parser.parse_bag_folder(args.bag)
             if metadata:
                 db_manager.insert_rosbag_metadata(metadata)
                 print(f"Successfully processed bag file: {args.bag}")
