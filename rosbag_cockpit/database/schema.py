@@ -1,192 +1,144 @@
 """
-Database operations for the Cockpit application.
+Database schema definitions for the Cockpit application.
 
-This module provides functions to interact with the SQLite database,
-including connecting, inserting, updating, and querying data.
+This module defines the SQLite table schemas and handles schema migrations.
 """
 
-import json
 import sqlite3
-from typing import Any, Dict, List, Optional
-
-from .modles import RosbagMetadata
-from .operation import DatabaseSchema
+from typing import Any, List
 
 
-class DatabaseManager:
-    """Manages database operations for the Cockpit application."""
+class DatabaseSchema:
+    """Manages the database schema creation and migrations."""
 
-    DEFAULT_DB_PATH = "rosbag_metadata.db"
+    # Initial schema definition for the rosbags table
+    ROSBAGS_TABLE_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS rosbags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_path TEXT UNIQUE NOT NULL,
+        map_category TEXT,
+        start_time TIMESTAMP,
+        end_time TIMESTAMP,
+        duration REAL,
+        size_mb REAL,
+        message_count INTEGER,
+        topic_count INTEGER,
+        topics_json TEXT,
+        metadata_json TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """
 
-    def __init__(self, db_path: str = DEFAULT_DB_PATH):
+    # Schema for tracking modifications to the schema
+    SCHEMA_MODIFICATIONS_TABLE = """
+    CREATE TABLE IF NOT EXISTS schema_modifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        column_name TEXT UNIQUE NOT NULL,
+        data_type TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """
+
+    # Initial columns for the rosbags table
+    INITIAL_COLUMNS = [
+        ("file_path", "TEXT"),
+        ("map_category", "TEXT"),
+        ("start_time", "TIMESTAMP"),
+        ("end_time", "TIMESTAMP"),
+        ("duration", "REAL"),
+        ("size_mb", "REAL"),
+        ("message_count", "INTEGER"),
+        ("topic_count", "INTEGER"),
+        ("topics_json", "TEXT"),
+        ("metadata_json", "TEXT"),
+    ]
+
+    @staticmethod
+    def initialize_database(cursor: sqlite3.Cursor) -> None:
         """
-        Initialize the database manager.
+        Initialize the database schema.
 
         Args:
-            db_path: Path to the SQLite database file
+            cursor: SQLite cursor object
         """
-        self.db_path = db_path
-        self.conn = None
-        self.cursor = None
-        self.connect_db()
-        self.initialize_db()
+        # Create tables
+        cursor.execute(DatabaseSchema.ROSBAGS_TABLE_SCHEMA)
+        cursor.execute(DatabaseSchema.SCHEMA_MODIFICATIONS_TABLE)
 
-    def connect_db(self) -> None:
-        """Connect to the SQLite database."""
-        self.conn = sqlite3.connect(self.db_path)
-        self.conn.row_factory = sqlite3.Row
-        self.cursor = self.conn.cursor()
+        # Record initial columns
+        for col_name, data_type in DatabaseSchema.INITIAL_COLUMNS:
+            cursor.execute(
+                """
+            INSERT OR IGNORE INTO schema_modifications (column_name, data_type)
+            VALUES (?, ?)
+            """,
+                (col_name, data_type),
+            )
 
-    def close_db(self) -> None:
-        """Close the database connection."""
-        if self.conn:
-            self.conn.close()
+    @staticmethod
+    def get_existing_columns(cursor: sqlite3.Cursor) -> List[str]:
+        """
+        Get a list of all existing column names in the rosbags table.
 
-    def initialize_db(self) -> None:
-        """Initialize the database schema."""
-        DatabaseSchema.initialize_database(self.cursor)
-        self.conn.commit()
+        Args:
+            cursor: SQLite cursor object
 
-    def add_column_if_not_exists(
-        self, column_name: str, data_type: str = "TEXT"
-    ) -> bool:
+        Returns:
+            List of column names
+        """
+        cursor.execute("PRAGMA table_info(rosbags)")
+        columns = [row[1] for row in cursor.fetchall()]
+        return columns
+
+    @staticmethod
+    def add_column_if_not_exists(cursor: sqlite3.Cursor, column_name: str, data_type: str) -> bool:
         """
         Add a new column to the rosbags table if it doesn't already exist.
 
         Args:
+            cursor: SQLite cursor object
             column_name: Name of the column to add
             data_type: SQLite data type for the column
 
         Returns:
             True if a new column was added, False otherwise
         """
-        result = DatabaseSchema.add_column_if_not_exists(
-            self.cursor, column_name, data_type
-        )
-        if result:
-            self.conn.commit()
-            print(f"Added new column: {column_name} ({data_type})")
-        return result
+        existing_columns = DatabaseSchema.get_existing_columns(cursor)
 
-    def insert_rosbag_metadata(self, metadata: RosbagMetadata) -> None:
+        if column_name not in existing_columns:
+            # Add the column to the table
+            sql = f"ALTER TABLE rosbags ADD COLUMN {column_name} {data_type}"
+            cursor.execute(sql)
+
+            # Record the modification
+            cursor.execute(
+                """
+            INSERT OR IGNORE INTO schema_modifications (column_name, data_type)
+            VALUES (?, ?)
+            """,
+                (column_name, data_type),
+            )
+
+            return True
+
+        return False
+
+    @staticmethod
+    def determine_sqlite_type(value: Any) -> str:
         """
-        Insert or update ROS bag metadata in the database.
+        Determine the appropriate SQLite data type based on a Python value.
 
         Args:
-            metadata: RosbagMetadata object containing the data to insert
-        """
-        metadata_dict = metadata.to_dict()
-
-        # Check for additional metadata fields that might need new columns
-        additional_metadata = json.loads(metadata_dict.get("metadata_json", "{}"))
-        for key, value in additional_metadata.items():
-            data_type = DatabaseSchema.determine_sqlite_type(value)
-            self.add_column_if_not_exists(key, data_type)
-            metadata_dict[key] = value
-
-        # Build the INSERT statement dynamically based on available columns
-        columns = DatabaseSchema.get_existing_columns(self.cursor)
-        valid_columns = [
-            col
-            for col in columns
-            if col in metadata_dict or col == "id" or col == "created_at"
-        ]
-
-        column_names = ", ".join(
-            [col for col in valid_columns if col != "id" and col != "created_at"]
-        )
-        placeholders = ", ".join(
-            ["?"] * (len(valid_columns) - 2)
-        )  # Exclude id and created_at
-
-        values = [
-            metadata_dict.get(col)
-            for col in valid_columns
-            if col != "id" and col != "created_at"
-        ]
-
-        sql = f"""
-        INSERT OR REPLACE INTO rosbags ({column_names})
-        VALUES ({placeholders})
-        """
-
-        self.cursor.execute(sql, values)
-        self.conn.commit()
-        print(f"Added/updated bag file in database: {metadata_dict['file_path']}")
-
-    def get_rosbag_by_path(self, file_path: str) -> Optional[Dict[str, Any]]:
-        """
-        Get a rosbag entry by its file path.
-
-        Args:
-            file_path: Path to the ROS bag file
+            value: Python value
 
         Returns:
-            Dictionary containing the rosbag data, or None if not found
+            SQLite data type as a string
         """
-        self.cursor.execute("SELECT * FROM rosbags WHERE file_path = ?", (file_path,))
-        row = self.cursor.fetchone()
-
-        if row:
-            return dict(row)
-        return None
-
-    def get_all_rosbags(self) -> List[Dict[str, Any]]:
-        """
-        Get all rosbag entries.
-
-        Returns:
-            List of dictionaries containing rosbag data
-        """
-        self.cursor.execute("SELECT * FROM rosbags")
-        rows = self.cursor.fetchall()
-        return [dict(row) for row in rows]
-
-    def get_rosbags_by_map_category(self, category: str) -> List[Dict[str, Any]]:
-        """
-        Get all rosbag entries for a specific map category.
-
-        Args:
-            category: Map category to filter by
-
-        Returns:
-            List of dictionaries containing rosbag data
-        """
-        self.cursor.execute("SELECT * FROM rosbags WHERE map_category = ?", (category,))
-        rows = self.cursor.fetchall()
-        return [dict(row) for row in rows]
-
-    def delete_rosbag(self, file_path: str) -> bool:
-        """
-        Delete a rosbag entry from the database.
-
-        Args:
-            file_path: Path to the ROS bag file to delete
-
-        Returns:
-            True if an entry was deleted, False otherwise
-        """
-        self.cursor.execute("DELETE FROM rosbags WHERE file_path = ?", (file_path,))
-        deleted = self.cursor.rowcount > 0
-        self.conn.commit()
-        return deleted
-
-    def print_database_stats(self) -> None:
-        """Print statistics about the database."""
-        self.cursor.execute("SELECT COUNT(*) FROM rosbags")
-        total_bags = self.cursor.fetchone()[0]
-
-        self.cursor.execute("SELECT COUNT(*) FROM schema_modifications")
-        total_columns = self.cursor.fetchone()[0]
-
-        self.cursor.execute(
-            "SELECT map_category, COUNT(*) FROM rosbags GROUP BY map_category"
-        )
-        category_counts = self.cursor.fetchall()
-
-        print("\nDatabase Statistics:")
-        print(f"Total ROS bag files: {total_bags}")
-        print(f"Total schema columns: {total_columns}")
-        print("Map category distribution:")
-        for category, count in category_counts:
-            print(f"  - {category or 'unknown'}: {count}")
+        if isinstance(value, int):
+            return "INTEGER"
+        elif isinstance(value, float):
+            return "REAL"
+        elif isinstance(value, bool):
+            return "BOOLEAN"
+        else:
+            return "TEXT"

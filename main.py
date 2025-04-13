@@ -28,9 +28,7 @@ def parse_args():
     # Add mutually exclusive group for processing options
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--bag", type=str, help="Process a single ROS bag file")
-    group.add_argument(
-        "--dir", type=str, help="Process all ROS bag files in a directory"
-    )
+    group.add_argument("--dir", type=str, help="Process all ROS bag files in a directory")
 
     parser.add_argument(
         "--recursive",
@@ -91,7 +89,7 @@ def main():
             print(f"Successfully processed {len(metadata_list)} bag files")
 
         if args.stats:
-            db_manager.print_database_stats()
+            db_manager.get_database_stats()
 
     finally:
         db_manager.close_db()

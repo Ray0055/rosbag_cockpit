@@ -5,6 +5,6 @@ This package contains modules for database models, schemas, and operations.
 """
 
 from .modles import RosbagMetadata, SchemaModification
-from .schema import DatabaseManager
+from .operations import DatabaseManager
 
 __all__ = ["RosbagMetadata", "SchemaModification", "DatabaseManager"]
