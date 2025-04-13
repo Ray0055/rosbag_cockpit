@@ -59,15 +59,11 @@ class RosbagParser:
         db3_files = [f for f in os.listdir(bag_folder_path) if f.endswith(".db3")]
 
         if len(mcap_files) + len(db3_files) > 1:
-            raise ValueError(
-                f"Multiple bag files found in directory: {bag_folder_path}"
-            )
+            raise ValueError(f"Multiple bag files found in directory: {bag_folder_path}")
         elif len(mcap_files) + len(db3_files) == 0:
             raise ValueError(f"No bag files found in directory: {bag_folder_path}")
         else:
-            bag_path = os.path.join(
-                bag_folder_path, mcap_files[0] if mcap_files else db3_files[0]
-            )
+            bag_path = os.path.join(bag_folder_path, mcap_files[0] if mcap_files else db3_files[0])
             file_size = os.path.getsize(bag_path) / (1024 * 1024)  # Convert to MB
 
             if os.path.exists(bag_folder_path + "/metadata.yaml"):
@@ -83,13 +79,9 @@ class RosbagParser:
                     os.path.join(bag_folder_path, db3_files[0])
                 )
             else:
-                raise ValueError(
-                    f"Unsupported bag file format in directory: {bag_folder_path}"
-                )
+                raise ValueError(f"Unsupported bag file format in directory: {bag_folder_path}")
 
-    def _extract_bag_metadata_from_yaml(
-        self, bag_path: str, file_size: float
-    ) -> RosbagMetadata:
+    def _extract_bag_metadata_from_yaml(self, bag_path: str, file_size: float) -> RosbagMetadata:
         """
         Extract metadata from a ROS bag file using YAML.
         Bag_path is validated.
@@ -126,9 +118,7 @@ class RosbagParser:
 
         start_time_ns = metadata["starting_time"]["nanoseconds_since_epoch"]
         # 转换为datetime对象 (Unix时间戳从1970年开始计算)
-        start_time = datetime.fromtimestamp(start_time_ns / 1e9).strftime(
-            "%Y-%m-%d-%H-%M-%S"
-        )
+        start_time = datetime.fromtimestamp(start_time_ns / 1e9).strftime("%Y-%m-%d-%H-%M-%S")
 
         # 计算结束时间
         end_time = datetime.fromtimestamp((start_time_ns + duration_ns) / 1e9).strftime(
@@ -138,9 +128,7 @@ class RosbagParser:
         message_count = metadata["message_count"]
 
         # 获取所有主题
-        topics = [
-            topic["topic_metadata"] for topic in metadata["topics_with_message_count"]
-        ]
+        topics = [topic["topic_metadata"] for topic in metadata["topics_with_message_count"]]
         for i, topic_with_count in enumerate(metadata["topics_with_message_count"]):
             # 将 message_count 直接添加到对应的 topic 字典中
             topics[i]["message_count"] = topic_with_count["message_count"]
@@ -228,9 +216,7 @@ class RosbagParser:
         # return metadata
         pass
 
-    def scan_directory(
-        self, directory_path: str, recursive: bool = True
-    ) -> List[RosbagMetadata]:
+    def scan_directory(self, directory_path: str, recursive: bool = True) -> List[RosbagMetadata]:
         """
         Scan a directory for ROS bag files and parse them.
 

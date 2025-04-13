@@ -3,10 +3,10 @@ API data models for request and response validation.
 These Pydantic models define the structure of data exchanged through the API.
 """
 
-from datetime import datetime
+import json
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class RosbagBase(BaseModel):
@@ -32,25 +32,6 @@ class RosbagUpdate(BaseModel):
     tags: Optional[List[str]] = Field(None, description="Updated list of tags for the rosbag")
 
 
-class Rosbag(RosbagBase):
-    """Full rosbag model including database fields."""
-
-    id: int = Field(..., description="Unique ID of the rosbag entry")
-    path: str = Field(..., description="Path to the rosbag file")
-    size_bytes: Optional[int] = Field(None, description="Size of the rosbag file in bytes")
-    duration_seconds: Optional[float] = Field(None, description="Duration of the rosbag in seconds")
-    start_time: Optional[datetime] = Field(None, description="Start time of the rosbag recording")
-    end_time: Optional[datetime] = Field(None, description="End time of the rosbag recording")
-    topic_count: Optional[int] = Field(None, description="Number of topics in the rosbag")
-    message_count: Optional[int] = Field(None, description="Number of messages in the rosbag")
-    tags: List[str] = Field(default=[], description="List of tags for the rosbag")
-    created_at: datetime = Field(..., description="Time when the entry was created")
-    updated_at: Optional[datetime] = Field(None, description="Time when the entry was last updated")
-
-    class Config:
-        orm_mode = True
-
-
 class Topic(BaseModel):
     """Model for topic information."""
 
@@ -63,6 +44,78 @@ class Topic(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class Rosbag(BaseModel):
+    """Model for rosbag record matching the database schema."""
+
+    id: Optional[int] = Field(None, description="Unique ID of the rosbag")
+    file_path: str = Field(..., description="Path to the rosbag file")
+    map_category: Optional[str] = Field(None, description="Category of the map")
+    start_time: Optional[str] = Field(None, description="Start time of the recording")
+    end_time: Optional[str] = Field(None, description="End time of the recording")
+    duration: Optional[float] = Field(None, description="Duration of the recording in seconds")
+    size_mb: Optional[float] = Field(None, description="Size of the file in MB")
+    message_count: Optional[int] = Field(None, description="Total number of messages")
+    topic_count: Optional[int] = Field(None, description="Number of topics")
+    topics: Optional[List[Topic]] = Field(None, description="List of topics in the rosbag")
+    metadata: Optional[Dict] = Field(None, description="Additional metadata")
+    created_at: Optional[str] = Field(None, description="Creation timestamp")
+
+    # Add a field to store topic count data
+    topic_counts: Dict[str, int] = Field(default_factory=dict, description="Topic message counts")
+
+    model_config = {"extra": "ignore"}  # Allow extra fields to be set during initialization
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_topic_counts(cls, data: Dict) -> Dict:
+        if not isinstance(data, dict):
+            return data
+
+        # Process any fields that match the pattern "topic__*_count"
+        topic_counts = {}
+        for key, value in list(data.items()):
+            if key.startswith("topic__") and key.endswith("_count"):
+                # Extract the topic name (remove "topic__" and "_count")
+                topic_name = key[7:-6]  # Remove "topic__" and "_count"
+                # Replace underscore with slash for the actual topic name
+                topic_name = "/" + topic_name.replace("_", "/")
+                topic_counts[topic_name] = value
+
+        # Add the extracted counts to the data
+        data["topic_counts"] = topic_counts
+        return data
+
+    @field_validator("topics", mode="before")
+    @classmethod
+    def parse_topics_json(cls, v, info):
+        if v is not None:
+            return v
+
+        values = info.data
+        topics_json = values.get("topics_json")
+        if topics_json:
+            try:
+                return json.loads(topics_json)
+            except json.JSONDecodeError:
+                pass
+        return None
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def parse_metadata_json(cls, v, info):
+        if v is not None:
+            return v
+
+        values = info.data
+        metadata_json = values.get("metadata_json")
+        if metadata_json:
+            try:
+                return json.loads(metadata_json)
+            except json.JSONDecodeError:
+                pass
+        return None
 
 
 class TopicCreate(BaseModel):

@@ -64,9 +64,7 @@ class RosbagPlayer:
             cmd.extend(topics)
 
         # Run the command
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         print(f"Started playing bag file: {bag_path}")
         return process

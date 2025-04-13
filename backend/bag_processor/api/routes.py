@@ -4,9 +4,11 @@ This module defines all the API endpoints for managing and analyzing ROS bag fil
 """
 
 import sqlite3
-from typing import Dict
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends
+
+from bag_processor.api.models import Rosbag
 
 # from cockpit.api.utils import (
 #     load_config,
@@ -17,6 +19,7 @@ from fastapi import APIRouter, Depends
 # from cockpit.rosbag.parser import get_messages_by_topics
 # from cockpit.rosbag.player import RosbagPlayer
 from ..database.operations import DatabaseManager
+from .schema import from_dict_to_database_stats, from_dict_to_rosbag
 
 router = APIRouter(prefix="/api")
 
@@ -47,11 +50,31 @@ async def get_system_stats(db: sqlite3.Connection = Depends(rosbag_database.get_
     Returns:
         Stats: System statistics
     """
-    return rosbag_database.get_database_stats()
+    res = rosbag_database.get_database_stats()
+
+    return from_dict_to_database_stats(res)
+
+
+@router.get(
+    "/rosbags/skidpad",
+)
+async def get_skidpad_rosbags(db: sqlite3.Connection = Depends(rosbag_database.get_db)):
+    """
+    Get skidpad rosbags.
+
+    Args:
+        db (Session): Database session
+
+    Returns:
+        List[Rosbag]: List of skidpad rosbags
+    """
+    res = rosbag_database.get_rosbags_by_map_category("skidpad")
+
+    return res
 
 
 # # Rosbag endpoints
-# @router.post("/rosbags", response_model=Rosbag)
+# @router.post("/rosbags/view", response_model=Rosbag)
 # async def create_rosbag_endpoint(
 #     rosbag: RosbagCreate,
 #     db: Session = Depends(get_db)
@@ -159,28 +182,30 @@ async def get_system_stats(db: sqlite3.Connection = Depends(rosbag_database.get_
 #     return db_rosbag
 
 
-# @router.get("/rosbags", response_model=List[Rosbag])
-# async def get_rosbags_endpoint(
-#     skip: int = 0,
-#     limit: int = 100,
-#     search: Optional[str] = None,
-#     tag: Optional[str] = None,
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Get a list of rosbags.
+@router.get("/rosbags", response_model=List[Rosbag])
+async def get_rosbags_endpoint(
+    # skip: int = 0,
+    # limit: int = 100,
+    # search: Optional[str] = None,
+    # tag: Optional[str] = None,
+    db: sqlite3.Connection = Depends(rosbag_database.get_db),
+):
+    """
+    Get a list of rosbags.
 
-#     Args:
-#         skip (int): Number of records to skip
-#         limit (int): Maximum number of records to return
-#         search (Optional[str]): Search term for filtering rosbags
-#         tag (Optional[str]): Filter rosbags by tag
-#         db (Session): Database session
+    Args:
+        skip (int): Number of records to skip
+        limit (int): Maximum number of records to return
+        search (Optional[str]): Search term for filtering rosbags
+        tag (Optional[str]): Filter rosbags by tag
+        db (Session): Database session
 
-#     Returns:
-#         List[Rosbag]: List of rosbags
-#     """
-#     return get_rosbags(db, skip=skip, limit=limit, search=search, tag=tag)
+    Returns:
+        List[Rosbag]: List of rosbags
+    """
+    res = rosbag_database.get_all_rosbags()
+    tmp = from_dict_to_rosbag(res)
+    return tmp
 
 
 # @router.get("/rosbags/{rosbag_id}", response_model=Rosbag)

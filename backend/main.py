@@ -10,8 +10,8 @@ import argparse
 import os
 import sys
 
-from rosbag_cockpit.bag_manager.parser import RosbagParser
-from rosbag_cockpit.database import DatabaseManager
+from .bag_processor.bag_manager.parser import RosbagParser
+from .bag_processor.database import DatabaseManager
 
 
 def parse_args():

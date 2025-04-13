@@ -1,0 +1,14 @@
+.venv/
+
+.vscode/*
+
+__pycache__/
+
+rosbag_metadata.db
+
+.mypy_cache/
+.ruff_cache/
+
+requirements.txt
+
+frontend/node_modules/
