@@ -3,7 +3,7 @@ name = "rosbag_cockpit"
 version = "0.1.0"
 description = "A tool for managing ROS bag metadata in SQLite database"
 authors = [
-    {name = "Rui Hu", email = "rui.hu@"},
+    {name = "Rui Hu", email = "rui.hu@rennteam.uni-stuttgart.de"},
 ]
 requires-python = ">=3.8"
 readme = "README.md"

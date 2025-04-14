@@ -1,0 +1,45 @@
+// See https://aka.ms/vscode-remote/devcontainer.json for format details.
+{
+	"name": "rosbag_cockpit",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+		
+	},
+	"remoteUser": "vscode", // change to driverless user later 
+	"containerUser": "vscode",
+	"runArgs": [
+		"--shm-size=4gb",
+		"--network=host",
+		"--cap-add=SYS_PTRACE",
+		"--security-opt=seccomp:unconfined",
+		"--security-opt=apparmor:unconfined",
+		"--volume=/tmp/.X11-unix:/tmp/.XP11-unix"
+	],
+	"postCreateCommand": "sh /home/vscode/rosbag_cockpit/.devcontainer/init.sh",
+	"workspaceMount": "source=${localWorkspaceFolder},target=/home/vscode/rosbag_cockpit,type=bind,consistency=cached",
+	"workspaceFolder": "/home/vscode/rosbag_cockpit",
+	"containerEnv": { "DISPLAY": "${localEnv:DISPLAY}"},
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"terminal.integrated.profiles.linux": {
+					"bash": {
+						"path": "bash"
+					}
+				},
+				"terminal.integrated.defaultProfile.linux": "bash"
+			}
+		},
+		"extensions": [
+		"dotjoshjohnson.xml",
+		"ms-azuretools.vscode-docker",
+		"ms-iot.vscode-ros",
+		"ms-python.python",
+		"redhat.vscode-yaml",
+		"smilerobotics.urdf"
+		]
+	
+	},
+	
+}
