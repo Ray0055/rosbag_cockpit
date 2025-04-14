@@ -41,7 +41,7 @@ class RosbagPlayer:
         if not os.path.exists(bag_path):
             raise FileNotFoundError(f"Bag file does not exist: {bag_path}")
 
-        cmd = ["ros2","bag", "play", bag_path+f"{bag_path}_0.db3"]
+        cmd = ["ros2","bag", "play", bag_path]
 
         if loop:
             cmd.append("--loop")
@@ -55,9 +55,10 @@ class RosbagPlayer:
 
         # Create a shell command with source commands and the ros2 bag play command
         shell_cmd = "source /opt/ros/galactic/setup.bash && source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
-        # Run the command
-        process = subprocess.Popen(shell_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
+        
+        # Attention: subprocess.run() is used here instead of subprocess.Popen
+        # to ensure only one process is to play the bag file at a time.
+        process = subprocess.run(["bash", "-c", shell_cmd], shell=False)
         print(f"Started playing bag file: {bag_path}")
         return process
 
