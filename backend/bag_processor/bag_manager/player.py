@@ -20,9 +20,6 @@ class RosbagPlayer:
         self,
         bag_path: str,
         topics: Optional[List[str]] = None,
-        rate: float = 1.0,
-        start: float = 0.0,
-        duration: Optional[float] = None,
         loop: bool = False,
         clock: bool = True,
     ) -> subprocess.Popen:
@@ -44,14 +41,7 @@ class RosbagPlayer:
         if not os.path.exists(bag_path):
             raise FileNotFoundError(f"Bag file does not exist: {bag_path}")
 
-        cmd = ["rosbag", "play", bag_path]
-
-        # Add options
-        cmd.extend(["--rate", str(rate)])
-        cmd.extend(["--start", str(start)])
-
-        if duration is not None:
-            cmd.extend(["--duration", str(duration)])
+        cmd = ["ros2","bag", "play", bag_path+f"{bag_path}_0.db3"]
 
         if loop:
             cmd.append("--loop")
@@ -63,8 +53,10 @@ class RosbagPlayer:
             cmd.append("--topics")
             cmd.extend(topics)
 
+        # Create a shell command with source commands and the ros2 bag play command
+        shell_cmd = "source /opt/ros/galactic/setup.bash && source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
         # Run the command
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(shell_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         print(f"Started playing bag file: {bag_path}")
         return process

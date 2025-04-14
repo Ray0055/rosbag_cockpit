@@ -15,6 +15,8 @@ class RosbagMetadata:
     def __init__(
         self,
         file_path: str,
+        file_name: str,
+        file_type: str,
         map_category: str,
         start_time: datetime,
         end_time: datetime,
@@ -43,6 +45,8 @@ class RosbagMetadata:
             additional_fields: Any additional metadata fields discovered in the bag
         """
         self.file_path = file_path
+        self.file_name = file_name
+        self.file_type = file_type
         self.map_category = map_category
         self.start_time = start_time
         self.end_time = end_time
@@ -71,6 +75,8 @@ class RosbagMetadata:
         """Convert the object to a dictionary for database insertion."""
         result = {
             "file_path": self.file_path,
+            "file_name": self.file_name,
+            "file_type": self.file_type,
             "map_category": self.map_category,
             "start_time": self.start_time,
             "end_time": self.end_time,

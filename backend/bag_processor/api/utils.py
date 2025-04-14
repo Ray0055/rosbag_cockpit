@@ -10,10 +10,6 @@ from typing import Any, Dict
 import yaml
 from fastapi import HTTPException
 
-# from cockpit.database.operations import get_rosbag_by_id
-# from cockpit.rosbag.parser import get_rosbag_info
-
-
 def load_config() -> Dict[str, Any]:
     """
     Load configuration from the YAML file.
@@ -57,45 +53,20 @@ def validate_rosbag_path(path: str) -> Path:
     return p
 
 
-# def get_rosbag_or_404(db: Session, rosbag_id: int):
-#     """
-#     Get a rosbag by ID or raise a 404 error.
+def analyze_rosbag_file(path: str) -> Dict[str, Any]:
+    """
+    Analyze a rosbag file and extract metadata.
 
-#     Args:
-#         db (Session): Database session
-#         rosbag_id (int): ID of the rosbag
+    Args:
+        path (str): Path to the rosbag file
 
-#     Returns:
-#         Rosbag: The rosbag object
+    Returns:
+        Dict[str, Any]: Metadata about the rosbag
 
-#     Raises:
-#         HTTPException: If the rosbag is not found
-#     """
-#     rosbag = get_rosbag_by_id(db, rosbag_id)
-#     if rosbag is None:
-#         raise HTTPException(
-#             status_code=404, detail=f"Rosbag with ID {rosbag_id} not found"
-#         )
-#     return rosbag
-
-
-# def analyze_rosbag_file(path: str) -> Dict[str, Any]:
-#     """
-#     Analyze a rosbag file and extract metadata.
-
-#     Args:
-#         path (str): Path to the rosbag file
-
-#     Returns:
-#         Dict[str, Any]: Metadata about the rosbag
-
-#     Raises:
-#         HTTPException: If there is an error analyzing the rosbag
-#     """
-#     try:
-#         return get_rosbag_info(path)
-#     except Exception as e:
-#    raise HTTPException(status_code=500, detail=f"Error analyzing rosbag: {str(e)}")
+    Raises:
+        HTTPException: If there is an error analyzing the rosbag
+    """
+    pass
 
 
 def format_size(size_bytes: int) -> str:

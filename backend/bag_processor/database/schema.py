@@ -1,144 +1,94 @@
-"""
-Database schema definitions for the Cockpit application.
-
-This module defines the SQLite table schemas and handles schema migrations.
-"""
-
-import sqlite3
-from typing import Any, List
-
+from typing import Any, List, Union
+from sqlalchemy import MetaData, Table, Column, String, Integer, Float, DateTime, Text, inspect, text
+from sqlalchemy.engine import Connection
 
 class DatabaseSchema:
-    """Manages the database schema creation and migrations."""
-
-    # Initial schema definition for the rosbags table
-    ROSBAGS_TABLE_SCHEMA = """
-    CREATE TABLE IF NOT EXISTS rosbags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        file_path TEXT UNIQUE NOT NULL,
-        map_category TEXT,
-        start_time TIMESTAMP,
-        end_time TIMESTAMP,
-        duration REAL,
-        size_mb REAL,
-        message_count INTEGER,
-        topic_count INTEGER,
-        topics_json TEXT,
-        metadata_json TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """
-
-    # Schema for tracking modifications to the schema
-    SCHEMA_MODIFICATIONS_TABLE = """
-    CREATE TABLE IF NOT EXISTS schema_modifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        column_name TEXT UNIQUE NOT NULL,
-        data_type TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """
-
-    # Initial columns for the rosbags table
-    INITIAL_COLUMNS = [
-        ("file_path", "TEXT"),
-        ("map_category", "TEXT"),
-        ("start_time", "TIMESTAMP"),
-        ("end_time", "TIMESTAMP"),
-        ("duration", "REAL"),
-        ("size_mb", "REAL"),
-        ("message_count", "INTEGER"),
-        ("topic_count", "INTEGER"),
-        ("topics_json", "TEXT"),
-        ("metadata_json", "TEXT"),
-    ]
+    """Manages the database schema for the Cockpit application."""
 
     @staticmethod
-    def initialize_database(cursor: sqlite3.Cursor) -> None:
-        """
-        Initialize the database schema.
-
-        Args:
-            cursor: SQLite cursor object
-        """
-        # Create tables
-        cursor.execute(DatabaseSchema.ROSBAGS_TABLE_SCHEMA)
-        cursor.execute(DatabaseSchema.SCHEMA_MODIFICATIONS_TABLE)
-
-        # Record initial columns
-        for col_name, data_type in DatabaseSchema.INITIAL_COLUMNS:
-            cursor.execute(
-                """
-            INSERT OR IGNORE INTO schema_modifications (column_name, data_type)
-            VALUES (?, ?)
-            """,
-                (col_name, data_type),
+    def initialize_database(conn: Connection) -> None:
+        """Initialize the database schema using SQLAlchemy."""
+        metadata = MetaData()
+        
+        # Define the rosbags table if it doesn't exist
+        if not inspect(conn).has_table("rosbags"):
+            rosbags = Table(
+                "rosbags", metadata,
+                Column("id", Integer, primary_key=True),
+                Column("file_path", Text, unique=True, nullable=False),
+                Column("file_name", Text),
+                Column("file_type", Text),
+                Column("map_category", Text),
+                Column("size_mb", Float),
+                Column("start_time", Text),
+                Column("end_time", Text),
+                Column("duration", Float),
+                Column("message_count", Integer),
+                Column("topic_count", Integer),
+                Column("topics_json", Text),
+                Column("metadata_json", Text),
+                Column("created_at", DateTime, server_default="CURRENT_TIMESTAMP")
             )
-
-    @staticmethod
-    def get_existing_columns(cursor: sqlite3.Cursor) -> List[str]:
-        """
-        Get a list of all existing column names in the rosbags table.
-
-        Args:
-            cursor: SQLite cursor object
-
-        Returns:
-            List of column names
-        """
-        cursor.execute("PRAGMA table_info(rosbags)")
-        columns = [row[1] for row in cursor.fetchall()]
-        return columns
-
-    @staticmethod
-    def add_column_if_not_exists(cursor: sqlite3.Cursor, column_name: str, data_type: str) -> bool:
-        """
-        Add a new column to the rosbags table if it doesn't already exist.
-
-        Args:
-            cursor: SQLite cursor object
-            column_name: Name of the column to add
-            data_type: SQLite data type for the column
-
-        Returns:
-            True if a new column was added, False otherwise
-        """
-        existing_columns = DatabaseSchema.get_existing_columns(cursor)
-
-        if column_name not in existing_columns:
-            # Add the column to the table
-            sql = f"ALTER TABLE rosbags ADD COLUMN {column_name} {data_type}"
-            cursor.execute(sql)
-
-            # Record the modification
-            cursor.execute(
-                """
-            INSERT OR IGNORE INTO schema_modifications (column_name, data_type)
-            VALUES (?, ?)
-            """,
-                (column_name, data_type),
-            )
-
-            return True
-
-        return False
+            
+            # Create the table
+            metadata.create_all(conn)
 
     @staticmethod
     def determine_sqlite_type(value: Any) -> str:
         """
-        Determine the appropriate SQLite data type based on a Python value.
+        Determine the appropriate SQLite type for a given value.
 
         Args:
-            value: Python value
+            value: Value to determine type for
 
         Returns:
-            SQLite data type as a string
+            SQLite data type as string
         """
         if isinstance(value, int):
             return "INTEGER"
         elif isinstance(value, float):
             return "REAL"
-        elif isinstance(value, bool):
-            return "BOOLEAN"
+        elif isinstance(value, (list, dict)):
+            return "TEXT"  # JSON will be stored as text
         else:
             return "TEXT"
+
+
+    @staticmethod
+    def add_column_if_not_exists(
+        conn: Connection, column_name: str, data_type: str = "TEXT"
+    ) -> bool:
+        """
+        Add a new column to the rosbags table if it doesn't already exist using SQLAlchemy.
+
+        Args:
+            conn: SQLAlchemy connection
+            column_name: Name of the column to add
+            data_type: SQLite data type for the column
+
+        Returns:
+            True if a new column was added, False if it already existed
+        """
+        # Get existing columns
+        insp = inspect(conn)
+        columns = [column['name'] for column in insp.get_columns('rosbags')]
+
+        # Add column if it doesn't exist
+        if column_name not in columns:
+            conn.execute(text(f"ALTER TABLE rosbags ADD COLUMN {column_name} {data_type}"))
+            return True
+        return False
+
+    @staticmethod
+    def get_existing_columns(conn: Connection) -> List[str]:
+        """
+        Get the list of existing columns in the rosbags table using SQLAlchemy.
+
+        Args:
+            conn: SQLAlchemy connection
+
+        Returns:
+            List of column names
+        """
+        insp = inspect(conn)
+        return [column['name'] for column in insp.get_columns('rosbags')]

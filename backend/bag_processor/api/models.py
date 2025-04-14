@@ -51,6 +51,8 @@ class Rosbag(BaseModel):
 
     id: Optional[int] = Field(None, description="Unique ID of the rosbag")
     file_path: str = Field(..., description="Path to the rosbag file")
+    file_name: Optional[str] = Field(None, description="Name of the rosbag file")
+    file_type: Optional[str] = Field(None, description="Type of the file (e.g., .bag, .mcap)")
     map_category: Optional[str] = Field(None, description="Category of the map")
     start_time: Optional[str] = Field(None, description="Start time of the recording")
     end_time: Optional[str] = Field(None, description="End time of the recording")

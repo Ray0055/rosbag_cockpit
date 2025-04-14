@@ -16,7 +16,7 @@ def from_dict_to_database_stats(data: dict) -> DatabaseStats:
     return DatabaseStats(**data)
 
 
-def from_dict_to_rosbag(data: List[dict]) -> List[Rosbag]:
+def from_dicts_to_rosbags(data: List[dict]) -> List[Rosbag]:
     """
     Convert a dictionary to a list of Rosbag objects.
 
@@ -28,6 +28,19 @@ def from_dict_to_rosbag(data: List[dict]) -> List[Rosbag]:
     """
     return [Rosbag(**item) for item in data]
 
+def get_all_rosbags(db) -> List[Rosbag]:
+    """
+    Get all rosbags from the database.
 
+    Args:
+        db: Database session
+
+    Returns:
+        List of Rosbag objects
+    """
+    # Placeholder for actual database query
+    # data = db.get_all_rosbags()
+    # return from_dict_to_rosbag(data)
+    pass
 
 # def get_rosbag()

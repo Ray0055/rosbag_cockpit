@@ -66,22 +66,39 @@ class RosbagParser:
             bag_path = os.path.join(bag_folder_path, mcap_files[0] if mcap_files else db3_files[0])
             file_size = os.path.getsize(bag_path) / (1024 * 1024)  # Convert to MB
 
-            if os.path.exists(bag_folder_path + "/metadata.yaml"):
-                return self._extract_bag_metadata_from_yaml(bag_folder_path, file_size)
+            
 
             if len(mcap_files) == 1:
-                return self._extract_bag_metadata_from_mcap(
-                    os.path.join(bag_folder_path, mcap_files[0])
+                if os.path.exists(bag_folder_path + "/metadata.yaml"):
+                    metadata =  self._extract_bag_metadata_from_yaml(bag_folder_path)
+                    metadata.file_path = os.path.join(bag_folder_path, mcap_files[0])
+                    metadata.file_type = "mcap"
+                    metadata.file_name = mcap_files[0]
+                    metadata.size_mb = file_size
+                    return metadata
+            
+                else:
+                    return self._extract_bag_metadata_from_mcap(
+                        os.path.join(bag_folder_path, mcap_files[0])
                 )
 
             elif len(db3_files) == 1:
-                return self._extract_bag_metadata_from_rosbag(
-                    os.path.join(bag_folder_path, db3_files[0])
-                )
+                if os.path.exists(bag_folder_path + "/metadata.yaml"):
+                    metadata =  self._extract_bag_metadata_from_yaml(bag_folder_path)
+                    metadata.file_path = os.path.join(bag_folder_path, db3_files[0])
+                    metadata.file_type = "db3"
+                    metadata.file_name = db3_files[0]
+                    metadata.size_mb = file_size
+                    return metadata
+                    
+                else:
+                    return self._extract_bag_metadata_from_rosbag(
+                        os.path.join(bag_folder_path, db3_files[0])
+                    )
             else:
                 raise ValueError(f"Unsupported bag file format in directory: {bag_folder_path}")
 
-    def _extract_bag_metadata_from_yaml(self, bag_path: str, file_size: float) -> RosbagMetadata:
+    def _extract_bag_metadata_from_yaml(self, bag_path: str) -> RosbagMetadata:
         """
         Extract metadata from a ROS bag file using YAML.
         Bag_path is validated.
@@ -94,11 +111,12 @@ class RosbagParser:
         """
         with open(bag_path + "/metadata.yaml", "r") as f:
             metadata = yaml.safe_load(f)
-            metadata = self._convert_metaData_toRosbagMetadata(metadata, file_size, bag_path)
+            metadata = self._convert_metaData_toRosbagMetadata(metadata, bag_path)
+            print(f"Converted matadata from yaml: {bag_path + '/metadata.yaml'}")
             return metadata
 
     def _convert_metaData_toRosbagMetadata(
-        self, metadata: Dict[str, Any], file_size: float, bag_folder_path: str = ""
+        self, metadata: Dict[str, Any], bag_folder_path: str = ""
     ) -> RosbagMetadata:
         """
         Convert metadata dictionary to RosbagMetadata object.
@@ -146,11 +164,13 @@ class RosbagParser:
         # 创建RosbagMetadata对象
         rosbag_metadata = RosbagMetadata(
             file_path=bag_folder_path,
+            file_name="",
+            file_type="",
             map_category="",
             start_time=start_time,
             end_time=end_time,
             duration=duration_sec,
-            size_mb=file_size,
+            size_mb=None,
             message_count=message_count,
             topic_count=len(topics),
             topics_json=topics_json,
@@ -247,12 +267,26 @@ class RosbagParser:
     
         result = []
         for subdir in subdirectories:
-            subdir_path = os.path.join(directory_path, subdir)
-            res = next(os.walk(subdir_path))
-            _, dirs, files = res
-            for dir in dirs:
-                metadata = self.parse_bag_folder(os.path.join(subdir_path, dir))
-                if metadata:
-                    result.append(metadata)
+            map_category = subdir
+
+            for root, dirs, files in os.walk(directory_path + '/' + subdir):
+                for file in files:
+                    if file.endswith(".db3") or file.endswith(".mcap"):
+                        
+                        metadata = self.parse_bag_folder(root)
+                        if metadata:
+                            metadata.map_category = map_category
+                            result.append(metadata)
+                        break
+                    
+
+
+            # subdir_path = os.path.join(directory_path, subdir)
+            # res = next(os.walk(subdir_path))
+            # _, dirs, files = res
+            # for dir in dirs:
+            #     metadata = self.parse_bag_folder(os.path.join(subdir_path, dir))
+            #     if metadata:
+            #         result.append(metadata)
 
         return result
