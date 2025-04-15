@@ -6,18 +6,19 @@ including connecting, inserting, updating, and querying data.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Generator
-from sqlalchemy.engine import Connection
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.sql import text
 
+from .db_connection_pool import DBConnectionPool
 from .modles import RosbagMetadata
 from .schema import DatabaseSchema
-from .db_connection_pool import DBConnectionPool
+
 
 class DatabaseManager:
     """Manages database operations for the Cockpit application."""
 
-    def __init__(self, db_conn_pool: DBConnectionPool ):
+    def __init__(self, db_conn_pool: DBConnectionPool):
         """
         Initialize the database manager.
 
@@ -46,7 +47,6 @@ class DatabaseManager:
             True if a new column was added, False otherwise
         """
         with self.conn_pool.get_connection() as conn:
-
             result = DatabaseSchema.add_column_if_not_exists(conn, column_name, data_type)
             if result:
                 conn.commit()
@@ -70,7 +70,6 @@ class DatabaseManager:
             metadata_dict[key] = value
 
         with self.conn_pool.get_connection() as conn:
-            
             # Build the INSERT statement dynamically based on available columns
             columns = DatabaseSchema.get_existing_columns(conn)
             valid_columns = [
@@ -84,23 +83,25 @@ class DatabaseManager:
 
             params = {}
             column_list = []
-            
+
             for col in valid_columns:
                 if col != "id" and col != "created_at":
                     column_list.append(col)
                     params[col] = metadata_dict.get(col)
-            
+
             placeholders = ", ".join([f":{col}" for col in column_list])
-            
-            sql = text(f"""
+
+            sql = text(
+                f"""
             INSERT INTO rosbags ({column_names})
             VALUES ({placeholders})
-            """)
+            """
+            )
 
             conn.execute(sql, params)
             conn.commit()
             print(f"Added/updated bag file in database: {metadata_dict['file_path']}")
-    
+
     def get_rosbag_by_path(self, file_path: str) -> Optional[Dict[str, Any]]:
         """
         Get a rosbag entry by its file path.
@@ -112,7 +113,9 @@ class DatabaseManager:
             Dictionary containing the rosbag data, or None if not found
         """
         with self.conn_pool.get_connection() as conn:
-            res = conn.execute(text("SELECT * FROM rosbags WHERE file_path = :file_path"), {"file_path": file_path})
+            res = conn.execute(
+                text("SELECT * FROM rosbags WHERE file_path = :file_path"), {"file_path": file_path}
+            )
             row = res.fetchone()
             if row:
                 return dict(row._mapping)
@@ -141,10 +144,11 @@ class DatabaseManager:
             List of dictionaries containing rosbag data
         """
         with self.conn_pool.get_connection() as conn:
-            res = conn.execute(text("SELECT * FROM rosbags WHERE map_category = :category"), {"category": category})
+            res = conn.execute(
+                text("SELECT * FROM rosbags WHERE map_category = :category"), {"category": category}
+            )
             rows = res.fetchall()
             return [dict(row._mapping) for row in rows]
-    
 
     # def delete_rosbag(self, file_path: str) -> bool:
     #     """
@@ -160,16 +164,17 @@ class DatabaseManager:
     #     deleted = self.cursor.rowcount > 0
     #     self.conn.commit()
     #     return deleted
-    
 
     def get_database_stats(self) -> Dict[str, Any]:
         """Print statistics about the database."""
-        
+
         with self.conn_pool.get_connection() as conn:
             result = conn.execute(text("SELECT COUNT(*) FROM rosbags"))
             rosbag_count = result.scalar()
 
-            result = conn.execute(text("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rosbags'"))
+            result = conn.execute(
+                text("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rosbags'")
+            )
             total_columns = result.scalar()
 
             # TODO: return category counts like:

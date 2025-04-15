@@ -1,7 +1,7 @@
 FROM python:3.8-alpine
 
 RUN apk add --update --no-cache nodejs npm && \
-    pip install uv 
+    pip install uv
 RUN apk add --update --no-cache git && \
     rm -rf /var/cache/apk/*
 

@@ -4,9 +4,9 @@
 	"build": {
 		"dockerfile": "Dockerfile",
 		"context": ".."
-		
+
 	},
-	"remoteUser": "vscode", // change to driverless user later 
+	"remoteUser": "vscode", // change to driverless user later
 	"containerUser": "vscode",
 	"runArgs": [
 		"--shm-size=4gb",
@@ -39,7 +39,7 @@
 		"redhat.vscode-yaml",
 		"smilerobotics.urdf"
 		]
-	
+
 	},
-	
+
 }

@@ -6,14 +6,17 @@ This package contains all the API routes, models, and utilities for the applicat
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .exception_handlers import register_exception_handlers
 from .routes import router as api_router
 
 # Create FastAPI app instance
+
 app = FastAPI(
     title="RosBag Cockpit API",
     description="API for managing and analyzing ROS bag files",
     version="0.1.0",
 )
+register_exception_handlers(app)
 
 # Enable CORS
 app.add_middleware(

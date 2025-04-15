@@ -1,8 +1,9 @@
-
 import os
 
 from sqlalchemy import create_engine
+
 from .schema import DatabaseSchema
+
 
 class DBInitializer:
     """
@@ -18,7 +19,7 @@ class DBInitializer:
             db_path: Path to the SQLite database file
         """
         self.db_path = db_path
-    
+
     def db_exists(self) -> bool:
         """
         Check if the database file exists.
@@ -27,7 +28,7 @@ class DBInitializer:
             bool: True if the database file exists, False otherwise
         """
         return os.path.exists(self.db_path)
-    
+
     def initialize_db(self) -> None:
         """
         Initialize the database schema.
@@ -41,7 +42,7 @@ class DBInitializer:
         if not os.path.exists(db_dir):
             os.makedirs(db_dir)
             print(f"Created directory for database: {db_dir}")
-        
+
         engine = create_engine(f"sqlite:///{self.db_path}")
         with engine.connect() as connection:
             DatabaseSchema.initialize_database(connection)

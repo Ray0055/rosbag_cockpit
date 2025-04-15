@@ -1,10 +1,13 @@
 import pytest
+
 from ..bag_manager.parser import RosbagParser
+
 
 @pytest.fixture
 def bag_parser():
     """Fixture to create an instance of RosbagParser."""
     return RosbagParser()
+
 
 def test_scan_directory():
     """
@@ -21,7 +24,8 @@ def test_scan_directory():
     metadata_list = parser.scan_directory(directory_path, recursive=True)
     assert len(metadata_list) == 0, "directory does not exits"
 
-    directory_path = "/home/driverless/rosbag_cockpit/backend/bag_processor/test/test_examples/rosbags/"
+    directory_path = (
+        "/home/driverless/rosbag_cockpit/backend/bag_processor/test/test_examples/rosbags/"
+    )
     metadata_list = parser.scan_directory(directory_path, recursive=True)
-    assert len(metadata_list) > 0,  "metadata found in the directory"
-
+    assert len(metadata_list) > 0, "metadata found in the directory"

@@ -5,21 +5,15 @@ This module defines all the API endpoints for managing and analyzing ROS bag fil
 
 from typing import Dict, List, Union
 
-from fastapi import APIRouter, Depends, Path, Query
-from .services import DatabaseService
+from fastapi import APIRouter, Path, Query
+
 from bag_processor.api.models import Rosbag
+
 from ..bag_manager.player import RosbagPlayer
-# from cockpit.api.utils import (
-#     load_config,
-#     validate_rosbag_path,
-#     get_rosbag_or_404,
-#     analyze_rosbag_file,
-# )
-# from cockpit.rosbag.parser import get_messages_by_topics
-# from cockpit.rosbag.player import RosbagPlayer
-from ..database.operations import DatabaseManager
-from .schema import from_dict_to_database_stats, from_dicts_to_rosbags
 from ..database.db_connection_pool import DBConnectionPool
+from ..database.operations import DatabaseManager
+from .services import DatabaseService
+
 router = APIRouter(prefix="/api")
 
 # Create connection pool
@@ -28,12 +22,14 @@ db_conn_pool = DBConnectionPool(
     pool_size=10,
     max_overflow=20,
     pool_timeout=30,
-    pool_recycle=1800
+    pool_recycle=1800,
 )
 
 # Create database manager with the connection pool
 db_manager = DatabaseManager(db_conn_pool=db_conn_pool)
 database_service = DatabaseService(db_manager)
+
+bag_player = RosbagPlayer()
 
 
 @router.get("/", response_model=Dict[str, str])
@@ -64,9 +60,7 @@ async def get_system_stats():
     return database_service.get_database_stats()
 
 
-@router.get(
-    "/rosbags/{map_category}", response_model=List[Rosbag]
-)
+@router.get("/rosbags/{map_category}", response_model=List[Rosbag])
 async def get_rosbags_by_map_category(
     map_category: str = Path(..., title="The map category to filter by"),
 ):
@@ -215,7 +209,6 @@ async def get_rosbags_endpoint(
     return database_service.get_all_rosbags()
 
 
-
 # @router.get("/rosbags/{rosbag_id}", response_model=Rosbag)
 # async def get_rosbag_endpoint(
 #     rosbag_id: int = Path(..., title="The ID of the rosbag to get"),
@@ -337,10 +330,12 @@ async def get_rosbags_endpoint(
 #     return messages
 
 
-@router.post("/rosbags/play",)
+@router.post(
+    "/rosbags/play/start",
+)
 async def play_rosbag_endpoint(
-    bag_path: Union[str, None] = Query(
-        default=None, title="The ID of the rosbag to play"),):
+    bag_path: Union[str, None] = Query(default=None, title="The ID of the rosbag to play"),
+):
     """
     Start playing a rosbag.
 
@@ -354,36 +349,47 @@ async def play_rosbag_endpoint(
     # Check if the rosbag exists
     rosbag = database_service.get_rosbag_by_path_or_404(bag_path)
 
-    # Create a player and start playing
-    player = RosbagPlayer()
-    player.play_bag(rosbag.file_path)
+    bag_player.play_bag(rosbag.file_path)
 
-    return {"message": f"Started playing rosbag ''", "data": None}
+    return {"message": "Started playing rosbag ''", "data": None}
 
 
-# @router.post("/rosbags/{rosbag_id}/stop", response_model=SuccessResponse)
-# async def stop_rosbag_endpoint(
-#     rosbag_id: int = Path(..., title="The ID of the rosbag to stop"),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Stop playing a rosbag.
+@router.post(
+    "/rosbags/play/stop",
+)
+async def stop_play_rosbag_endpoint():
+    """
+    Stop playing a rosbag.
 
-#     Args:
-#         rosbag_id (int): ID of the rosbag
-#         db (Session): Database session
+    Args:
+        rosbag_id (int): ID of the rosbag
+        db (Session): Database session
 
-#     Returns:
-#         SuccessResponse: Success message
-#     """
-#     # Check if the rosbag exists
-#     rosbag = get_rosbag_or_404(db, rosbag_id)
+    Returns:
+        SuccessResponse: Success message
+    """
+    res = bag_player.stop_playback()
 
-#     # Create a player and stop playing
-#     player = RosbagPlayer(rosbag.path)
-#     player.stop()
+    return {"message": f"{res}"}
 
-#     return {"message": f"Stopped playing rosbag '{rosbag.name}'", "data": None}
+
+@router.post(
+    "/rosbags/play/status",
+)
+async def get_play_rosbag_status_endpoint():
+    """
+    Get the status of the rosbag player.
+
+    Args:
+        rosbag_id (int): ID of the rosbag
+        db (Session): Database session
+
+    Returns:
+        SuccessResponse: Success message
+    """
+    status = bag_player.get_playback_status()
+
+    return status
 
 
 # @router.post("/rosbags/{rosbag_id}/analyze", response_model=Dict[str, Any])

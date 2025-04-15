@@ -11,8 +11,8 @@ import os
 import sys
 
 from bag_processor.bag_manager.parser import RosbagParser
-from bag_processor.database import DatabaseManager, DBConnectionPool
-from bag_processor.database import DBInitializer
+from bag_processor.database import DatabaseManager, DBConnectionPool, DBInitializer
+
 
 def parse_args():
     """Parse command line arguments."""
@@ -51,15 +51,15 @@ def main():
 
     db_initializer = DBInitializer(args.db)
     db_initializer.initialize_db()
-    
+
     # Initialize database connection pool
     db_conn_pool = DBConnectionPool(
-    db_url="sqlite:///rosbag_metadata.db",
-    pool_size=10,
-    max_overflow=20,
-    pool_timeout=30,
-    pool_recycle=1800
-)
+        db_url="sqlite:///rosbag_metadata.db",
+        pool_size=10,
+        max_overflow=20,
+        pool_timeout=30,
+        pool_recycle=1800,
+    )
 
     # Create database manager with the connection pool
     db_manager = DatabaseManager(db_conn_pool=db_conn_pool)

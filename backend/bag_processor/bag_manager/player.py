@@ -6,7 +6,11 @@ This module provides functionality to play ROS bag files.
 
 import os
 import subprocess
+import threading
+import time
 from typing import Any, Dict, List, Optional
+
+from .error import BagPlaybackBusyError
 
 
 class RosbagPlayer:
@@ -14,7 +18,14 @@ class RosbagPlayer:
 
     def __init__(self):
         """Initialize the ROS bag player."""
-        pass
+
+        self.bag_lock = threading.Lock()
+        self.bag_process = None
+
+        self.stop_playback_event = (
+            threading.Event()
+        )  # a threading event to signal when to stop playback
+        self.playback_thread = None
 
     def play_bag(
         self,
@@ -22,7 +33,7 @@ class RosbagPlayer:
         topics: Optional[List[str]] = None,
         loop: bool = False,
         clock: bool = True,
-    ) -> subprocess.Popen:
+    ) -> bool:
         """
         Play a ROS bag file using the rosbag play command.
 
@@ -41,7 +52,7 @@ class RosbagPlayer:
         if not os.path.exists(bag_path):
             raise FileNotFoundError(f"Bag file does not exist: {bag_path}")
 
-        cmd = ["ros2","bag", "play", bag_path]
+        cmd = ["ros2", "bag", "play", bag_path]
 
         if loop:
             cmd.append("--loop")
@@ -54,27 +65,85 @@ class RosbagPlayer:
             cmd.extend(topics)
 
         # Create a shell command with source commands and the ros2 bag play command
-        shell_cmd = "source /opt/ros/galactic/setup.bash && source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
-        
-        # Attention: subprocess.run() is used here instead of subprocess.Popen
-        # to ensure only one process is to play the bag file at a time.
-        process = subprocess.run(["bash", "-c", shell_cmd], shell=False)
-        print(f"Started playing bag file: {bag_path}")
-        return process
+        shell_cmd = (
+            "source /opt/ros/galactic/setup.bash &&"
+            "source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
+        )
 
-    def stop_playback(self, process: subprocess.Popen) -> None:
+        with self.bag_lock:
+            if self.playback_thread and self.playback_thread.is_alive():
+                raise BagPlaybackBusyError()
+
+            self.stop_playback_event.clear()  # Clear the stop playback event
+
+            # Start the playback in a separate thread
+            self.playback_thread = threading.Thread(
+                target=self._play_bag_thread,
+                args=(shell_cmd,),
+                daemon=True,
+            )
+            self.playback_thread.start()
+            time.sleep(0.1)
+
+            return self.playback_thread.is_alive()
+
+    def _play_bag_thread(self, shell_cmd: str) -> None:
+        """
+        Thread target for playing the bag file.
+
+        Args:
+            shell_cmd: Shell command to execute
+        """
+        try:
+            with self.bag_lock:
+                self.bag_process = subprocess.Popen(
+                    ["bash", "-c", shell_cmd],
+                    shell=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+
+            print("Bag playback started")
+
+            # Wait for the process to finish or until the stop event is set
+            while not self.stop_playback_event.is_set() or self.bag_process.poll() is None:
+                time.sleep(0.1)  # Sleep for a short duration to avoid busy waiting
+
+            # if process is still running, but stop_playback is set, terminate the process
+            if self.bag_process.poll() is None and self.stop_playback_event.is_set():
+                with self.bag_lock:
+                    self.bag_process.terminate()
+                    self.bag_process.wait(timeout=2.0)
+                    print("Bag playback stopped")
+            print("Bag playback finished")
+        except Exception as e:
+            print(f"Error during bag playback: {e}")
+        finally:
+            with self.bag_lock:
+                self.bag_process = None
+
+    def stop_playback(self) -> str:
         """
         Stop a running bag playback process.
 
         Args:
             process: Subprocess object representing the rosbag play process
         """
-        if process.poll() is None:  # Check if the process is still running
-            process.terminate()
-            process.wait()
-            print("Stopped bag playback")
+        self.stop_playback_event.set()  # Set the stop playback event
+        with self.bag_lock:
+            if self.bag_process and self.bag_process.poll() is None:
+                try:
+                    self.bag_process.terminate()
+                    self.bag_process.wait(timeout=2.0)
+                    print("Bag playback stopped")
+                    return "Bag playback stopped"
+                except Exception as e:
+                    print(f"Error stopping bag playback: {e}")
+            else:
+                print("No bag is currently being played")
+                return "No bag is currently being played"
 
-    def get_playback_status(self, process: subprocess.Popen) -> Dict[str, Any]:
+    def get_playback_status(self) -> Dict[str, Any]:
         """
         Get the status of a running bag playback process.
 
@@ -84,9 +153,13 @@ class RosbagPlayer:
         Returns:
             Dictionary containing status information
         """
-        status = {
-            "running": process.poll() is None,
-            "return_code": process.returncode if process.poll() is not None else None,
-        }
 
-        return status
+        with self.bag_lock:
+            playback_thread = self.playback_thread and self.playback_thread.is_alive()
+            process_is_running = self.bag_process and self.bag_process.poll() is None
+
+            status = {
+                "running": process_is_running and playback_thread,
+                "thread_alive": playback_thread,
+            }
+            return status

@@ -10,6 +10,7 @@ from typing import Any, Dict
 import yaml
 from fastapi import HTTPException
 
+
 def load_config() -> Dict[str, Any]:
     """
     Load configuration from the YAML file.

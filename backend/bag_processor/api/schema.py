@@ -28,6 +28,7 @@ def from_dicts_to_rosbags(data: List[dict]) -> List[Rosbag]:
     """
     return [Rosbag(**item) for item in data]
 
+
 def get_all_rosbags(db) -> List[Rosbag]:
     """
     Get all rosbags from the database.
@@ -42,5 +43,6 @@ def get_all_rosbags(db) -> List[Rosbag]:
     # data = db.get_all_rosbags()
     # return from_dict_to_rosbag(data)
     pass
+
 
 # def get_rosbag()

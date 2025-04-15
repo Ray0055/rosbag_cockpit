@@ -1,6 +1,8 @@
-from typing import Any, List, Union
-from sqlalchemy import MetaData, Table, Column, String, Integer, Float, DateTime, Text, inspect, text
+from typing import Any, List
+
+from sqlalchemy import Column, DateTime, Float, Integer, MetaData, Table, Text, inspect, text
 from sqlalchemy.engine import Connection
+
 
 class DatabaseSchema:
     """Manages the database schema for the Cockpit application."""
@@ -9,11 +11,12 @@ class DatabaseSchema:
     def initialize_database(conn: Connection) -> None:
         """Initialize the database schema using SQLAlchemy."""
         metadata = MetaData()
-        
+
         # Define the rosbags table if it doesn't exist
         if not inspect(conn).has_table("rosbags"):
-            rosbags = Table(
-                "rosbags", metadata,
+            Table(
+                "rosbags",
+                metadata,
                 Column("id", Integer, primary_key=True),
                 Column("file_path", Text, unique=True, nullable=False),
                 Column("file_name", Text),
@@ -27,9 +30,9 @@ class DatabaseSchema:
                 Column("topic_count", Integer),
                 Column("topics_json", Text),
                 Column("metadata_json", Text),
-                Column("created_at", DateTime, server_default="CURRENT_TIMESTAMP")
+                Column("created_at", DateTime, server_default="CURRENT_TIMESTAMP"),
             )
-            
+
             # Create the table
             metadata.create_all(conn)
 
@@ -53,7 +56,6 @@ class DatabaseSchema:
         else:
             return "TEXT"
 
-
     @staticmethod
     def add_column_if_not_exists(
         conn: Connection, column_name: str, data_type: str = "TEXT"
@@ -71,7 +73,7 @@ class DatabaseSchema:
         """
         # Get existing columns
         insp = inspect(conn)
-        columns = [column['name'] for column in insp.get_columns('rosbags')]
+        columns = [column["name"] for column in insp.get_columns("rosbags")]
 
         # Add column if it doesn't exist
         if column_name not in columns:
@@ -91,4 +93,4 @@ class DatabaseSchema:
             List of column names
         """
         insp = inspect(conn)
-        return [column['name'] for column in insp.get_columns('rosbags')]
+        return [column["name"] for column in insp.get_columns("rosbags")]

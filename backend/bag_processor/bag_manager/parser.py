@@ -66,31 +66,29 @@ class RosbagParser:
             bag_path = os.path.join(bag_folder_path, mcap_files[0] if mcap_files else db3_files[0])
             file_size = os.path.getsize(bag_path) / (1024 * 1024)  # Convert to MB
 
-            
-
             if len(mcap_files) == 1:
                 if os.path.exists(bag_folder_path + "/metadata.yaml"):
-                    metadata =  self._extract_bag_metadata_from_yaml(bag_folder_path)
+                    metadata = self._extract_bag_metadata_from_yaml(bag_folder_path)
                     metadata.file_path = os.path.join(bag_folder_path, mcap_files[0])
                     metadata.file_type = "mcap"
                     metadata.file_name = mcap_files[0]
                     metadata.size_mb = file_size
                     return metadata
-            
+
                 else:
                     return self._extract_bag_metadata_from_mcap(
                         os.path.join(bag_folder_path, mcap_files[0])
-                )
+                    )
 
             elif len(db3_files) == 1:
                 if os.path.exists(bag_folder_path + "/metadata.yaml"):
-                    metadata =  self._extract_bag_metadata_from_yaml(bag_folder_path)
+                    metadata = self._extract_bag_metadata_from_yaml(bag_folder_path)
                     metadata.file_path = os.path.join(bag_folder_path, db3_files[0])
                     metadata.file_type = "db3"
                     metadata.file_name = db3_files[0]
                     metadata.size_mb = file_size
                     return metadata
-                    
+
                 else:
                     return self._extract_bag_metadata_from_rosbag(
                         os.path.join(bag_folder_path, db3_files[0])
@@ -264,22 +262,19 @@ class RosbagParser:
                 raise ValueError(
                     f"Directory structure is incorrect, expected: {directory_path}/{subdir}"
                 )
-    
+
         result = []
         for subdir in subdirectories:
             map_category = subdir
 
-            for root, dirs, files in os.walk(directory_path + '/' + subdir):
+            for root, dirs, files in os.walk(directory_path + "/" + subdir):
                 for file in files:
                     if file.endswith(".db3") or file.endswith(".mcap"):
-                        
                         metadata = self.parse_bag_folder(root)
                         if metadata:
                             metadata.map_category = map_category
                             result.append(metadata)
                         break
-                    
-
 
             # subdir_path = os.path.join(directory_path, subdir)
             # res = next(os.walk(subdir_path))
