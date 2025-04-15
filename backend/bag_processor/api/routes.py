@@ -299,7 +299,24 @@ async def stop_container_endpoint(
     Returns:
         SuccessResponse: Success message
     """
-    return docker_service.stop_container(container_id)
+    return docker_service.stop_container_by_id(container_id)
+
+
+@router.delete(
+    "/docker/remove/{container_id}",
+)
+async def remove_container_endpoint(
+    container_id: str = Path(..., title="The Docker container ID to remove"),
+):
+    """
+    Remove a Docker container.
+
+    Args:
+        container_id (str): The Docker container ID to remove
+    Returns:
+        SuccessResponse: Success message
+    """
+    return docker_service.remove_container_by_id(container_id)
 
 
 @router.get(

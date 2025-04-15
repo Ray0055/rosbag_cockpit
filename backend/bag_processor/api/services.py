@@ -153,7 +153,7 @@ class DockerService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    def delete_container_from_id(self, container_id: str):
+    def remove_container_by_id(self, container_id: str):
         """
         Delete a Docker container by ID.
 
@@ -173,8 +173,9 @@ class DockerService:
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+            # TODO: thie error handling is not detailed enough
 
-    def stop_container_from_id(self, container_id: str):
+    def stop_container_by_id(self, container_id: str):
         """
         Stop a Docker container by ID.
 
