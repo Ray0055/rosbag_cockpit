@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 from ..api.schema import Rosbag, from_dict_to_database_stats, from_dicts_to_rosbags
 from ..database.operations import DatabaseManager
-from .models import DockerContainerInfo, DockerImageInfo
+from .models import DockerContainerConfig, DockerContainerInfo, DockerImageInfo
 
 
 class DatabaseService:
@@ -78,7 +78,7 @@ class DockerService:
         """
         self.docker_client = docker_client
 
-    def run_container_from_image(self, image_tag: str):
+    def run_container_from_image(self, image_tag: str, config: DockerContainerConfig):
         """
         Run a Docker container with the specified image tag.
 
@@ -89,7 +89,17 @@ class DockerService:
             dict: Container details
         """
         try:
-            container = self.docker_client.containers.run(image_tag, detach=True)
+            container = self.docker_client.containers.run(
+                image_tag,
+                detach=True,
+                name=config.name,
+                volumes=config.volumes,
+                ports=config.ports,
+                environment=config.environment,
+                command=config.command,
+                network=config.network,
+            )
+
             return {"status": "success", "container_id": container.id}
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

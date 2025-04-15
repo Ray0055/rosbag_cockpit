@@ -6,13 +6,14 @@ This module defines all the API endpoints for managing and analyzing ROS bag fil
 from typing import Dict, List, Union
 
 import docker
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Body, Path, Query
 
 from bag_processor.api.models import Rosbag
 
 from ..bag_manager.player import RosbagPlayer
 from ..database.db_connection_pool import DBConnectionPool
 from ..database.operations import DatabaseManager
+from .models import DockerContainerConfig
 from .services import DatabaseService, DockerService
 
 router = APIRouter(prefix="/api")
@@ -266,6 +267,7 @@ async def get_play_rosbag_status_endpoint():
 )
 async def run_container_endpoint(
     image_tag: str = Path(..., title="The Docker image tag to run"),
+    config: DockerContainerConfig = Body(default=None, title="Docker container configuration"),
 ):
     """
     Run a Docker container with the specified image tag.
@@ -277,7 +279,9 @@ async def run_container_endpoint(
     Returns:
         SuccessResponse: Success message
     """
-    return docker_service.run_container_from_image(image_tag)
+    if config is None:
+        config = DockerContainerConfig()
+    return docker_service.run_container_from_image(image_tag, config)
 
 
 @router.post(
@@ -291,8 +295,6 @@ async def stop_container_endpoint(
 
     Args:
         container_id (str): The Docker container ID to stop
-        db (Session): Database session
-
     Returns:
         SuccessResponse: Success message
     """

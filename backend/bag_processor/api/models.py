@@ -4,7 +4,7 @@ These Pydantic models define the structure of data exchanged through the API.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -185,3 +185,16 @@ class DockerContainerInfo(BaseModel):
     ports: Dict[str, Any]
     created: str
     labels: Optional[Dict[str, str]] = None
+
+
+class DockerContainerConfig(BaseModel):
+    """
+    Model for Docker container configuration.
+    """
+
+    volumes: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+    ports: Optional[Dict[str, Union[int, str]]] = None
+    environment: Optional[Dict[str, str]] = None
+    command: Optional[str] = None
+    name: Optional[str] = None
+    network: Optional[str] = None
