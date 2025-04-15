@@ -16,6 +16,7 @@ dependencies = [
     "sqlalchemy",
     "fastapi",
     "pytest==6.2.5",
+    "docker"
 ]
 
 [project.scripts]

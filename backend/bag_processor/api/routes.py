@@ -5,6 +5,7 @@ This module defines all the API endpoints for managing and analyzing ROS bag fil
 
 from typing import Dict, List, Union
 
+import docker
 from fastapi import APIRouter, Path, Query
 
 from bag_processor.api.models import Rosbag
@@ -12,7 +13,7 @@ from bag_processor.api.models import Rosbag
 from ..bag_manager.player import RosbagPlayer
 from ..database.db_connection_pool import DBConnectionPool
 from ..database.operations import DatabaseManager
-from .services import DatabaseService
+from .services import DatabaseService, DockerService
 
 router = APIRouter(prefix="/api")
 
@@ -31,6 +32,10 @@ database_service = DatabaseService(db_manager)
 
 bag_player = RosbagPlayer()
 
+# Initializattion of docker client
+docker_client = docker.from_env()
+docker_service = DockerService(docker_client)
+
 
 @router.get("/", response_model=Dict[str, str])
 async def root():
@@ -46,7 +51,7 @@ async def root():
 @router.get(
     "/stats",
 )
-async def get_system_stats():
+async def get_database_stats():
     """
     Get system statistics.
 
@@ -77,113 +82,43 @@ async def get_rosbags_by_map_category(
     return database_service.get_rosbags_by_map_category(map_category)
 
 
-# # Rosbag endpoints
-# @router.post("/rosbags/view", response_model=Rosbag)
-# async def create_rosbag_endpoint(
-#     rosbag: RosbagCreate,
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Create a new rosbag entry.
+@router.post("/rosbags/view", response_model=Rosbag)
+async def create_rosbag_endpoint():
+    """
+    Create a new rosbag entry.
 
-#     Args:
-#         rosbag (RosbagCreate): Rosbag data
-#         db (Session): Database session
+    Args:
+        rosbag (RosbagCreate): Rosbag data
+        db (Session): Database session
 
-#     Returns:
-#         Rosbag: The created rosbag
-#     """
-#     # Validate that the rosbag file exists
-#     path = validate_rosbag_path(rosbag.path)
-
-#     # Analyze the rosbag file to get metadata
-#     info = analyze_rosbag_file(str(path))
-
-#     # Create the rosbag entry
-#     db_rosbag = create_rosbag(db, rosbag, info)
-
-#     # Create topic entries for each topic in the rosbag
-#     for topic_info in info.get("topics", []):
-#         topic_data = TopicCreate(
-#             rosbag_id=db_rosbag.id,
-#             name=topic_info["name"],
-#             message_type=topic_info["type"],
-#             message_count=topic_info["message_count"],
-#             frequency=topic_info.get("frequency"),
-#         )
-#         create_topic(db, topic_data)
-
-#     return db_rosbag
+    Returns:
+        Rosbag: The created rosbag
+    """
+    pass
 
 
-# @router.post("/rosbags/upload", response_model=Rosbag)
-# async def upload_rosbag(
-#     file: UploadFile = File(...),
-#     name: str = Form(...),
-#     description: Optional[str] = Form(None),
-#     tags: Optional[str] = Form(None),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Upload a new rosbag file and create an entry for it.
+@router.post("/rosbags/upload", response_model=Rosbag)
+async def upload_rosbag(
+    # file: UploadFile = File(...),
+    # name: str = Form(...),
+    # description: Optional[str] = Form(None),
+    # tags: Optional[str] = Form(None),
+    # db: Session = Depends(get_db)
+):
+    """
+    Upload a new rosbag file and create an entry for it.
 
-#     Args:
-#         file (UploadFile): The rosbag file to upload
-#         name (str): Name of the rosbag
-#         description (Optional[str]): Description of the rosbag
-#         tags (Optional[str]): Comma-separated list of tags
-#         db (Session): Database session
+    Args:
+        file (UploadFile): The rosbag file to upload
+        name (str): Name of the rosbag
+        description (Optional[str]): Description of the rosbag
+        tags (Optional[str]): Comma-separated list of tags
+        db (Session): Database session
 
-#     Returns:
-#         Rosbag: The created rosbag
-#     """
-#     if not file.filename.endswith(".bag"):
-#    raise HTTPException(status_code=400, detail="Uploaded file must be a .bag file")
-
-#     # Parse tags
-#     tag_list = []
-#     if tags:
-#         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-
-#     # Save the uploaded file
-#     config = load_config()
-#     storage_dir = config["rosbag"]["storage_dir"]
-#     os.makedirs(storage_dir, exist_ok=True)
-
-#     file_path = os.path.join(storage_dir, file.filename)
-
-#     # Write the file to disk
-#     with open(file_path, "wb") as buffer:
-#         while True:
-#             chunk = await file.read(1024 * 1024)  # Read 1MB at a time
-#             if not chunk:
-#                 break
-#             buffer.write(chunk)
-
-#     # Create the rosbag entry
-#     rosbag_data = RosbagCreate(
-#         name=name,
-#         description=description,
-#         path=file_path,
-#         tags=tag_list
-#     )
-
-#     # Analyze and create the rosbag entry
-#     info = analyze_rosbag_file(file_path)
-#     db_rosbag = create_rosbag(db, rosbag_data, info)
-
-#     # Create topic entries
-#     for topic_info in info.get("topics", []):
-#         topic_data = TopicCreate(
-#             rosbag_id=db_rosbag.id,
-#             name=topic_info["name"],
-#             message_type=topic_info["type"],
-#             message_count=topic_info["message_count"],
-#             frequency=topic_info.get("frequency"),
-#         )
-#         create_topic(db, topic_data)
-
-#     return db_rosbag
+    Returns:
+        Rosbag: The created rosbag
+    """
+    pass
 
 
 @router.get("/rosbags", response_model=List[Rosbag])
@@ -209,125 +144,59 @@ async def get_rosbags_endpoint(
     return database_service.get_all_rosbags()
 
 
-# @router.get("/rosbags/{rosbag_id}", response_model=Rosbag)
-# async def get_rosbag_endpoint(
-#     rosbag_id: int = Path(..., title="The ID of the rosbag to get"),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Get a rosbag by ID.
+@router.get("/rosbags/{rosbag_id}", response_model=Rosbag)
+async def get_rosbag_endpoint(
+    rosbag_id: int = Path(..., title="The ID of the rosbag to get"),
+):
+    """
+    Get a rosbag by ID.
 
-#     Args:
-#         rosbag_id (int): ID of the rosbag
-#         db (Session): Database session
+    Args:
+        rosbag_id (int): ID of the rosbag
+        db (Session): Database session
 
-#     Returns:
-#         Rosbag: The rosbag
-#     """
-#     return get_rosbag_or_404(db, rosbag_id)
-
-
-# @router.put("/rosbags/{rosbag_id}", response_model=Rosbag)
-# async def update_rosbag_endpoint(
-#     rosbag_update: RosbagUpdate,
-#     rosbag_id: int = Path(..., title="The ID of the rosbag to update"),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Update a rosbag.
-
-#     Args:
-#         rosbag_update (RosbagUpdate): Updated rosbag data
-#         rosbag_id (int): ID of the rosbag to update
-#         db (Session): Database session
-
-#     Returns:
-#         Rosbag: The updated rosbag
-#     """
-#     # Check if the rosbag exists
-#     get_rosbag_or_404(db, rosbag_id)
-
-#     # Update the rosbag
-#     return update_rosbag(db, rosbag_id, rosbag_update)
+    Returns:
+        Rosbag: The rosbag
+    """
+    pass
 
 
-# @router.delete("/rosbags/{rosbag_id}", response_model=SuccessResponse)
-# async def delete_rosbag_endpoint(
-#     rosbag_id: int = Path(..., title="The ID of the rosbag to delete"),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Delete a rosbag.
+@router.delete(
+    "/rosbags/{rosbag_id}",
+)
+async def delete_rosbag_endpoint(
+    rosbag_id: int = Path(..., title="The ID of the rosbag to delete"),
+):
+    """
+    Delete a rosbag.
 
-#     Args:
-#         rosbag_id (int): ID of the rosbag to delete
-#         db (Session): Database session
+    Args:
+        rosbag_id (int): ID of the rosbag to delete
+        db (Session): Database session
 
-#     Returns:
-#         SuccessResponse: Success message
-#     """
-#     # Check if the rosbag exists
-#     rosbag = get_rosbag_or_404(db, rosbag_id)
-
-#     # Delete the rosbag
-#     delete_rosbag(db, rosbag_id)
-
-#     return {"message": f"Rosbag '{rosbag.name}' deleted successfully", "data": None}
+    Returns:
+        SuccessResponse: Success message
+    """
+    pass
 
 
-# @router.get("/rosbags/{rosbag_id}/topics", response_model=List[Topic])
-# async def get_topics_endpoint(
-#     rosbag_id: int = Path(..., title="The ID of the rosbag"),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Get topics for a rosbag.
+@router.get(
+    "/rosbags/{rosbag_id}/topics",
+)
+async def get_topics_endpoint(
+    rosbag_id: int = Path(..., title="The ID of the rosbag"),
+):
+    """
+    Get topics for a rosbag.
 
-#     Args:
-#         rosbag_id (int): ID of the rosbag
-#         db (Session): Database session
+    Args:
+        rosbag_id (int): ID of the rosbag
+        db (Session): Database session
 
-#     Returns:
-#         List[Topic]: List of topics
-#     """
-#     # Check if the rosbag exists
-#     get_rosbag_or_404(db, rosbag_id)
-
-#     # Get topics
-#     return get_topics_by_rosbag_id(db, rosbag_id)
-
-
-# @router.post("/rosbags/{rosbag_id}/messages", response_model=List[Message])
-# async def get_messages_endpoint(
-#     query: MessageQuery,
-#     rosbag_id: int = Path(..., title="The ID of the rosbag"),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Get messages from a rosbag.
-
-#     Args:
-#         query (MessageQuery): Query parameters
-#         rosbag_id (int): ID of the rosbag
-#         db (Session): Database session
-
-#     Returns:
-#         List[Message]: List of messages
-#     """
-#     # Check if the rosbag exists
-#     rosbag = get_rosbag_or_404(db, rosbag_id)
-
-#     # Get messages from the rosbag file
-#     messages = get_messages_by_topics(
-#         rosbag.path,
-#         query.topic_names,
-#         query.start_time,
-#         query.end_time,
-#         query.limit,
-#         query.offset
-#     )
-
-#     return messages
+    Returns:
+        List[Topic]: List of topics
+    """
+    pass
 
 
 @router.post(
@@ -392,25 +261,65 @@ async def get_play_rosbag_status_endpoint():
     return status
 
 
-# @router.post("/rosbags/{rosbag_id}/analyze", response_model=Dict[str, Any])
-# async def analyze_rosbag_endpoint(
-#     rosbag_id: int = Path(..., title="The ID of the rosbag to analyze"),
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     Analyze a rosbag file and get detailed information.
+@router.post(
+    "/docker/run/{image_tag}",
+)
+async def run_container_endpoint(
+    image_tag: str = Path(..., title="The Docker image tag to run"),
+):
+    """
+    Run a Docker container with the specified image tag.
 
-#     Args:
-#         rosbag_id (int): ID of the rosbag
-#         db (Session): Database session
+    Args:
+        image_tag (str): The Docker image tag to run
+        db (Session): Database session
 
-#     Returns:
-#         Dict[str, Any]: Detailed information about the rosbag
-#     """
-#     # Check if the rosbag exists
-#     rosbag = get_rosbag_or_404(db, rosbag_id)
+    Returns:
+        SuccessResponse: Success message
+    """
+    return docker_service.run_container_from_image(image_tag)
 
-#     # Analyze the rosbag file
-#     info = analyze_rosbag_file(rosbag.path)
 
-#     return info
+@router.post(
+    "/docker/stop/{container_id}",
+)
+async def stop_container_endpoint(
+    container_id: str = Path(..., title="The Docker container ID to stop"),
+):
+    """
+    Stop a running Docker container.
+
+    Args:
+        container_id (str): The Docker container ID to stop
+        db (Session): Database session
+
+    Returns:
+        SuccessResponse: Success message
+    """
+    return docker_service.stop_container(container_id)
+
+
+@router.get(
+    "/docker/images",
+)
+async def list_docker_images_endpoint():
+    """
+    List all Docker images.
+
+    Returns:
+        List[Dict[str, str]]: List of Docker images
+    """
+    return docker_service.list_all_images()
+
+
+@router.get(
+    "/docker/containers",
+)
+async def list_docker_containers_endpoint():
+    """
+    List all Docker containers.
+
+    Returns:
+        List[Dict[str, str]]: List of Docker containers
+    """
+    return docker_service.list_all_containers()

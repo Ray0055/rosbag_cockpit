@@ -168,3 +168,20 @@ class DatabaseStats(BaseModel):
 
     rosbag_count: int = Field(..., description="Total number of rosbags")
     total_columns: int = Field(..., description="Total number of columns in the database")
+
+
+class DockerImageInfo(BaseModel):
+    id: str
+    tags: List[str]
+    size: int
+    created: str
+
+
+class DockerContainerInfo(BaseModel):
+    id: str
+    name: str
+    image_tags: Optional[List[str]] = None
+    status: str
+    ports: Dict[str, Any]
+    created: str
+    labels: Optional[Dict[str, str]] = None
