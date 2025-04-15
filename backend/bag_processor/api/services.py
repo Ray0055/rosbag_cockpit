@@ -1,3 +1,5 @@
+import subprocess
+import threading
 from typing import List
 
 from fastapi import HTTPException
@@ -191,3 +193,79 @@ class DockerService:
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+
+class RosPublisherService:
+    def __init__(self):
+        """
+        Initialize the PublishService.
+
+        Args:
+            rosbag_manager: RosbagManager instance
+        """
+        self.publish_lock = threading.Lock()
+        self.publish_process = None
+
+    def publish_masterlogic(self, as_state: str, active_mission: str):
+        """
+        Publish a message to a ROS topic.
+
+        Args:
+            topic: The topic to publish
+            message: The message to publish
+
+        Returns:
+            dict: Publishing status
+        """
+        with self.publish_lock:
+            if self.publish_process and self.publish_process.poll() is None:
+                raise HTTPException(
+                    status_code=400, detail="master logic is already being published"
+                )
+            else:
+                master_logic_msg = [
+                    "ros2",
+                    "topic",
+                    "pub",
+                    "--rate",
+                    str(1),
+                    "/master_logic",
+                    "comm_pkg/msg/MasterLogic",
+                    f'{{header: {{stamp: {{sec: 0, nanosec: 0}}, frame_id: ""}}, '
+                    f"as_state: {as_state}, active_mission: {active_mission}}}",
+                ]
+
+                try:
+                    # Start the process, redirecting output to /dev/null
+                    self.publish_process = subprocess.Popen(
+                        master_logic_msg,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+
+                except Exception as e:
+                    print(
+                        f"Error starting process: {e}"
+                    )  # TODO: thie error handling is not detailed enough
+
+    def stop_publish_masterlogic(self):
+        """
+        Stop publishing a message to a ROS topic.
+
+        Returns:
+            dict: Stopping status
+        """
+        with self.publish_lock:
+            if self.publish_process and self.publish_process.poll() is None:
+                try:
+                    self.publish_process.terminate()
+                    self.publish_process.wait(timeout=2.0)
+                    return {"status": "success", "message": "Publishing stopped successfully"}
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=500, detail=str(e)
+                    )  # TODO: thie error handling is not detailed enough
+            else:
+                raise HTTPException(
+                    status_code=400, detail="No master logic is currently being published"
+                )  # TODO: thie error handling is not detailed enough

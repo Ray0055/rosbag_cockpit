@@ -14,7 +14,7 @@ from ..bag_manager.player import RosbagPlayer
 from ..database.db_connection_pool import DBConnectionPool
 from ..database.operations import DatabaseManager
 from .models import DockerContainerConfig
-from .services import DatabaseService, DockerService
+from .services import DatabaseService, DockerService, RosPublisherService
 
 router = APIRouter(prefix="/api")
 
@@ -36,6 +36,7 @@ bag_player = RosbagPlayer()
 # Initializattion of docker client
 docker_client = docker.from_env()
 docker_service = DockerService(docker_client)
+publish_service = RosPublisherService()
 
 
 @router.get("/", response_model=Dict[str, str])
@@ -325,3 +326,37 @@ async def list_docker_containers_endpoint():
         List[Dict[str, str]]: List of Docker containers
     """
     return docker_service.list_all_containers()
+
+
+@router.post(
+    "/topics/master_logic/publish",
+)
+async def publish_topic_endpoint(as_state: int, active_mission: int):
+    """
+    Publish a message from ROS topic.
+
+    Args:
+        topic (str): The topic to publish
+        message (str): The message to publish
+
+    Returns:
+        SuccessResponse: Success message
+    """
+    return publish_service.publish_masterlogic(as_state, active_mission)
+
+
+@router.post(
+    "/topics/master_logic/stop",
+)
+async def stop_publish_topic_endpoint():
+    """
+    Stop publishing a message from ROS topic.
+
+    Args:
+        topic (str): The topic to publish
+        message (str): The message to publish
+
+    Returns:
+        SuccessResponse: Success message
+    """
+    return publish_service.stop_publish_masterlogic()
