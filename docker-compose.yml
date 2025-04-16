@@ -15,7 +15,7 @@ services:
       - /home/${USERNAME}/rosbags:/home/${USERNAME}/rosbags # Mount rosbags directory
     restart: unless-stopped
     environment:
-      - USERNAME=${USERNAME}
+      - USERNAME=${USER}
       - USER_UID=1000
       - USER_GID=1000
     network_mode: host
