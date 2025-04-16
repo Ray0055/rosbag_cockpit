@@ -1,4 +1,7 @@
+import io
+import os
 import subprocess
+import tarfile
 import threading
 from typing import List
 
@@ -215,6 +218,40 @@ class DockerService:
             return {
                 "status": "success",
                 "message": f"Container {container_id} stopped successfully",
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def copy_from_container(self, container_id: str, source_path: str, dest_path: str):
+        """
+        Copy files from a Docker container to the host.
+
+        Args:
+            container_id: Docker container ID
+            source_path: Source path in the container
+            dest_path: Destination path on the host
+
+        Returns:
+            dict: Copying status
+        """
+        try:
+            container = self.docker_client.containers.get(container_id)
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+            bits, stat = container.get_archive(source_path)
+
+            tar_stream = io.BytesIO()
+            for chunk in bits:
+                tar_stream.write(chunk)
+            tar_stream.seek(0)
+
+            with tarfile.open(fileobj=tar_stream) as tar:
+                tar.extractall(path=dest_path)
+
+            return {
+                "status": "success",
+                "message": f"Files copied from container: {container_id} from"
+                f"{source_path} to {dest_path} successfully",
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

@@ -335,6 +335,28 @@ async def remove_container_endpoint(
     return docker_service.remove_container_by_id(container_id)
 
 
+@router.post(
+    "/docker/copy/{container_id}",
+)
+async def copy_from_container_endpoint(
+    container_id: str = Path(..., title="The Docker container ID to copy to"),
+    source_path: str = Body(..., title="The source path to copy from"),
+    destination_path: str = Body(..., title="The destination path to copy to"),
+):
+    """
+    Copy files to a Docker container.
+
+    Args:
+        container_id (str): The Docker container ID to copy to
+        source_path (str): The source path to copy from
+        destination_path (str): The destination path to copy to
+
+    Returns:
+        SuccessResponse: Success message
+    """
+    return docker_service.copy_from_container(container_id, source_path, destination_path)
+
+
 @router.get(
     "/docker/images",
 )
