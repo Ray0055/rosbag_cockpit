@@ -100,6 +100,7 @@ class DockerService:
                 environment=config.environment,
                 command=config.command,
                 network=config.network,
+                user="1000:1000",  # use the same user as the host
             )
 
             return {"status": "success", "container_id": container.id}
@@ -163,6 +164,9 @@ class DockerService:
         Returns:
             dict: Deletion status
         """
+        # If you have problems while removing the container which was created with
+        # create_container_from_image, you can try to following command:
+        # sudo aa-remove-unknown
         try:
             container = self.docker_client.containers.get(container_id)
             container.stop()

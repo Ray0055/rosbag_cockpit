@@ -192,9 +192,9 @@ class DockerContainerConfig(BaseModel):
     Model for Docker container configuration.
     """
 
-    volumes: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+    volumes: Optional[List[str]] = None
     ports: Optional[Dict[str, Union[int, str]]] = None
     environment: Optional[Dict[str, str]] = None
-    command: Optional[str] = None
+    command: Optional[List[str]] = None
     name: Optional[str] = None
     network: Optional[str] = None
