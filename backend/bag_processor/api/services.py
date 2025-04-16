@@ -179,6 +179,26 @@ class DockerService:
             raise HTTPException(status_code=500, detail=str(e))
             # TODO: thie error handling is not detailed enough
 
+    def run_container_by_id(self, container_id: str):
+        """
+        Run a Docker container by ID.
+
+        Args:
+            container_id: Docker container ID
+
+        Returns:
+            dict: Running status
+        """
+        try:
+            container = self.docker_client.containers.get(container_id)
+            container.start()
+            return {
+                "status": "success",
+                "message": f"Container {container_id} started successfully",
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
     def stop_container_by_id(self, container_id: str):
         """
         Stop a Docker container by ID.

@@ -285,6 +285,22 @@ async def run_container_endpoint(
     return docker_service.run_container_from_image(image_tag, config)
 
 
+@router.get(
+    "/docker/run/{container_id}",
+)
+async def run_container_by_id_endpoint(
+    container_id: str = Path(..., title="The Docker container ID to run"),
+):
+    """
+    Run a Docker container with the specified container ID.
+    Args:
+        container_id (str): The Docker container ID to run
+    Returns:
+        SuccessResponse: Success message
+    """
+    return docker_service.run_container_by_id(container_id)
+
+
 @router.post(
     "/docker/stop/{container_id}",
 )
