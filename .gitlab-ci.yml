@@ -1,0 +1,22 @@
+stages:
+  - build
+  - deploy
+
+cache:
+  paths:
+    - backend/.venv/
+    - frontend/node_modules/
+
+build_backend_and_frontend:
+  stage: build
+  tags:
+    - carmaker-desktop
+  script:
+    - docker compose build
+
+deploy:
+  stage: deploy
+  tags:
+    - carmaker-desktop
+  script:
+    - source start.sh

@@ -3,7 +3,7 @@ API routes for the RosBag Cockpit application.
 This module defines all the API endpoints for managing and analyzing ROS bag files.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import docker
 from fastapi import APIRouter, Body, HTTPException, Path, Query
@@ -11,28 +11,26 @@ from fastapi import APIRouter, Body, HTTPException, Path, Query
 from bag_processor.api.models import Rosbag
 
 from ..bag_manager.player import RosbagPlayer
-from ..database.db_connection_pool import DBConnectionPool
-from ..database.operations import DatabaseManager
 from .models import DockerContainerConfig
-from .services import DatabaseService, DockerService, RosPublisherService
+from .services import DockerService, RosPublisherService
 
 router = APIRouter(prefix="/api")
 
-# Create connection pool
-db_conn_pool = DBConnectionPool(
-    db_url="sqlite:///rosbag_metadata.db",
-    pool_size=10,
-    max_overflow=20,
-    pool_timeout=30,
-    pool_recycle=1800,
-)
+# # Create connection pool
+# db_conn_pool = DBConnectionPool(
+#     db_url="sqlite:///rosbag_metadata.db",
+#     pool_size=10,
+#     max_overflow=20,
+#     pool_timeout=30,
+#     pool_recycle=1800,
+# )
 
-# Create database manager with the connection pool
-db_manager = DatabaseManager(db_conn_pool=db_conn_pool)
-database_service = DatabaseService(db_manager)
+# # Create database manager with the connection pool
+# db_manager = DatabaseManager(db_conn_pool=db_conn_pool)
+# database_service = DatabaseService(db_manager)
 
 bag_player = RosbagPlayer()
-
+database_service = Any
 # Initializattion of docker client
 docker_client = docker.from_env()
 docker_service = DockerService(docker_client)
