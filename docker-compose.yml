@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    # Add Docker group to container. Be sure to set this in your environment
+    # backend container will need access to the Docker socket to run containers
+    # and to the host network to access the ROS master
+    group_add:
+      - "${DOCKER_GID}"
+    user: "1000:1000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
+      - /home/${USERNAME}/tmp/output:/tmp/output # Mount output directory
+      - /home/${USERNAME}/rosbags:/home/${USERNAME}/rosbags # Mount rosbags directory
+    restart: unless-stopped
+    environment:
+      - USERNAME=${USERNAME}
+      - USER_UID=1000
+      - USER_GID=1000
+    network_mode: host
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+    depends_on:
+      - backend

@@ -6,8 +6,6 @@ authors = [
     {name = "Rui Hu", email = "rui.hu@rennteam.uni-stuttgart.de"},
 ]
 requires-python = ">=3.8"
-readme = "README.md"
-license = {text = "MIT"}
 
 dependencies = [
     "pyyaml",
