@@ -65,10 +65,15 @@ class RosbagPlayer:
             cmd.extend(topics)
 
         # Create a shell command with source commands and the ros2 bag play command
-        shell_cmd = (
-            "source /opt/ros/galactic/setup.bash &&"
-            "source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
-        )
+        # TODO: If you want to run fastapi in docker, you need to create a image with
+        # ros2 installed and comm_pkg installed
+
+        # @attention: This is a workaround for running ros2 in docker container
+        # shell_cmd = (
+        #     "source /opt/ros/galactic/setup.bash &&"
+        #     "source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
+        # )
+        cmd = " ".join(cmd)
 
         with self.bag_lock:
             if self.playback_thread and self.playback_thread.is_alive():
@@ -79,7 +84,7 @@ class RosbagPlayer:
             # Start the playback in a separate thread
             self.playback_thread = threading.Thread(
                 target=self._play_bag_thread,
-                args=(shell_cmd,),
+                args=(cmd,),
                 daemon=True,
             )
             self.playback_thread.start()
@@ -87,6 +92,8 @@ class RosbagPlayer:
 
             return self.playback_thread.is_alive()
 
+    # TODO: There is a bug that the bag process is not killed
+    # when rosbag play is finished
     def _play_bag_thread(self, shell_cmd: str) -> None:
         """
         Thread target for playing the bag file.
@@ -115,6 +122,14 @@ class RosbagPlayer:
                     self.bag_process.terminate()
                     self.bag_process.wait(timeout=2.0)
                     print("Bag playback stopped")
+
+            # check if the process has finished and return code is not 0
+            if self.bag_process.returncode != 0 and not self.stop_playback_event.is_set():
+                stderr = self.bag_process.stderr.read().decode("utf-8")
+                stdout = self.bag_process.stdout.read().decode("utf-8")
+                print(f"Bag playback failed with return code {self.bag_process.returncode}")
+                print(f"Error output: {stderr}")
+                print(f"Standard output: {stdout}")
             print("Bag playback finished")
         except Exception as e:
             print(f"Error during bag playback: {e}")
@@ -155,11 +170,16 @@ class RosbagPlayer:
         """
 
         with self.bag_lock:
-            playback_thread = self.playback_thread and self.playback_thread.is_alive()
-            process_is_running = self.bag_process and self.bag_process.poll() is None
+            thread_alive = False
+            if self.playback_thread is not None:
+                thread_alive = self.playback_thread.is_alive()
+
+            process_is_running = False
+            if self.bag_process is not None:
+                process_is_running = self.bag_process.poll() is None
 
             status = {
-                "running": process_is_running and playback_thread,
-                "thread_alive": playback_thread,
+                "running": process_is_running and thread_alive,
+                "thread_alive": thread_alive,
             }
             return status

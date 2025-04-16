@@ -3,10 +3,10 @@ API routes for the RosBag Cockpit application.
 This module defines all the API endpoints for managing and analyzing ROS bag files.
 """
 
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import docker
-from fastapi import APIRouter, Body, Path, Query
+from fastapi import APIRouter, Body, HTTPException, Path, Query
 
 from bag_processor.api.models import Rosbag
 
@@ -263,42 +263,35 @@ async def get_play_rosbag_status_endpoint():
     return status
 
 
-@router.post(
-    "/docker/run/{image_tag}",
-)
-async def run_container_endpoint(
-    image_tag: str = Path(..., title="The Docker image tag to run"),
-    config: DockerContainerConfig = Body(default=None, title="Docker container configuration"),
+@router.post("/docker/run")
+async def run_docker_endpoint(
+    image_tag: Optional[str] = Query(None, title="The Docker image tag to run"),
+    container_id: Optional[str] = Query(None, title="The Docker container ID to run"),
+    config: Optional[DockerContainerConfig] = Body(
+        default=None, title="Docker container configuration"
+    ),
 ):
     """
-    Run a Docker container with the specified image tag.
+    Run a Docker container either with the specified image tag or container ID.
 
     Args:
-        image_tag (str): The Docker image tag to run
-        db (Session): Database session
+        image_tag (Optional[str]): The Docker image tag to run
+        container_id (Optional[str]): The Docker container ID to run
+        config (Optional[DockerContainerConfig]): Docker container configuration
 
     Returns:
         SuccessResponse: Success message
     """
-    if config is None:
-        config = DockerContainerConfig()
-    return docker_service.run_container_from_image(image_tag, config)
-
-
-@router.get(
-    "/docker/run/{container_id}",
-)
-async def run_container_by_id_endpoint(
-    container_id: str = Path(..., title="The Docker container ID to run"),
-):
-    """
-    Run a Docker container with the specified container ID.
-    Args:
-        container_id (str): The Docker container ID to run
-    Returns:
-        SuccessResponse: Success message
-    """
-    return docker_service.run_container_by_id(container_id)
+    if image_tag is not None:
+        if config is None:
+            config = DockerContainerConfig()
+        return docker_service.run_container_from_image(image_tag, config)
+    elif container_id is not None:
+        return docker_service.run_container_by_id(container_id)
+    else:
+        raise HTTPException(
+            status_code=400, detail="Either image_tag or container_id must be provided"
+        )
 
 
 @router.post(
