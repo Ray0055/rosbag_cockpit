@@ -12,7 +12,7 @@ from bag_processor.api.models import Rosbag
 
 from ..bag_manager.player import RosbagPlayer
 from .models import DockerContainerConfig
-from .services import DockerService, RosPublisherService
+from .services import DockerService, OpenLoopTestService, RosPublisherService
 
 router = APIRouter(prefix="/api")
 
@@ -35,6 +35,7 @@ database_service = Any
 docker_client = docker.from_env()
 docker_service = DockerService(docker_client)
 publish_service = RosPublisherService()
+openloop_service = OpenLoopTestService(docker_service, bag_player, database_service)
 
 
 @router.get("/", response_model=Dict[str, str])
@@ -406,3 +407,31 @@ async def stop_publish_topic_endpoint():
         SuccessResponse: Success message
     """
     return publish_service.stop_publish_masterlogic()
+
+
+@router.post(
+    "/test/open_loop",
+)
+async def run_open_loop_test_endpoint(
+    rosbag_paths: List[str] = Body(..., title="The path to the rosbag file"),
+    image_tag: str = Body(..., title="The image tag to run"),
+):
+    """
+    Run an open loop test with the specified rosbag and backend URL.
+
+    Args:
+        rosbag_path (str): The path to the rosbag file
+        backend_url (str): The backend URL
+
+    Returns:
+        SuccessResponse: Success message
+    """
+    result = await openloop_service.execute_open_loop_test(
+        rosbag_paths=rosbag_paths,
+        image_tag=image_tag,
+    )
+
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["message"])
+
+    return result

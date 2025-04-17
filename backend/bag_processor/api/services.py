@@ -1,9 +1,11 @@
+import asyncio
 import io
+import logging
 import os
 import subprocess
 import tarfile
 import threading
-from typing import List
+from typing import Any, Dict, List
 
 from fastapi import HTTPException
 
@@ -331,3 +333,114 @@ class RosPublisherService:
                 raise HTTPException(
                     status_code=400, detail="No master logic is currently being published"
                 )  # TODO: thie error handling is not detailed enough
+
+
+class OpenLoopTestService:
+    def __init__(self, docker_service, bag_player, database_service=None):
+        self.docker_service = docker_service
+        self.bag_player = bag_player
+        self.database_service = database_service
+
+    async def execute_open_loop_test(
+        self,
+        rosbag_paths: List[str],
+        image_tag: str,
+    ) -> Dict[str, Any]:
+        """
+        Execute complete open loop test process, directly calling service functions
+
+        Args:
+            rosbag_paths: List of rosbag file paths to process
+            image_tag: Docker image tag to run
+
+        Returns:
+            Dict: Dictionary containing operation results
+        """
+        container_id = None
+        results = []
+
+        try:
+            # Validate all rosbag paths
+            for path in rosbag_paths:
+                if not os.path.exists(path):
+                    raise ValueError(f"Rosbag file does not exist: {path}")
+
+            # 1. Start Docker container
+            container_config = DockerContainerConfig(
+                name="workspace",
+                network="host",
+                command=[
+                    "/bin/bash",
+                    "-c",
+                    "source scripts/launch/launch_all_sim.bash && tail -f /dev/null",
+                ],
+            )
+            container_response = self.docker_service.run_container_from_image(
+                image_tag, container_config
+            )
+            container_id = container_response.get("container_id")
+            logging.info(f"Started Docker container with ID: {container_id}")
+
+            # 2. Process each rosbag file
+            for i, rosbag_path in enumerate(rosbag_paths):
+                logging.info(f"Processing rosbag {i+1}/{len(rosbag_paths)}: {rosbag_path}")
+
+                # Play rosbag
+                self.bag_player.play_bag(rosbag_path)
+
+                # Wait for rosbag playback to finish
+                while True:
+                    status = self.bag_player.get_playback_status()
+
+                    if not status.get("running", False):
+                        break
+                    else:
+                        logging.info(f"Rosbag {rosbag_path} is still playing...")
+                    await asyncio.sleep(5)  # Use async sleep
+
+                # Stop playback
+                self.bag_player.stop_playback()
+
+                # Record results
+                results.append({"rosbag": rosbag_path, "status": "completed", "index": i + 1})
+
+                # If not the last rosbag, restart container
+                if i < len(rosbag_paths) - 1:
+                    self.docker_service.stop_container_by_id(container_id)
+                    self.docker_service.run_container_by_id(container_id)
+                    logging.info(f"Restarted Docker container with ID: {container_id}")
+
+            # 3. After processing all rosbags, copy evaluation data
+            self.docker_service.stop_container_by_id(container_id)
+
+            # Copy lidar evaluation data
+            self.docker_service.copy_from_container(
+                container_id,
+                "/home/vscode/workspace/src/lidar/evaluation/",  # username is set up in Dockerfile
+                "/tmp/output/lidar/",
+            )
+
+            # Copy estimation evaluation data
+            self.docker_service.copy_from_container(
+                container_id,
+                "/home/vscode/workspace/src/estimation/evaluation/",
+                "/tmp/output/estimation/",
+            )
+
+            logging.info("Copied evaluation data from container to host")
+            # 4. Delete container
+            self.docker_service.remove_container_by_id(container_id)
+            logging.info(f"Deleted Docker container with ID: {container_id}")
+            return {
+                "success": True,
+                "message": "Open loop test completed successfully",
+                "container_id": container_id,
+                "results": results,
+                "output_paths": ["/tmp/output/lidar/", "/tmp/output/estimation/"],
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Open loop test failed: {str(e)}",
+                "error": str(e),
+            }
