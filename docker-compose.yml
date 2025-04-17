@@ -13,11 +13,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
       - /home/${USERNAME}/tmp/output:/tmp/output # Mount output directory
       - /home/${USERNAME}/rosbags:/home/${USERNAME}/rosbags # Mount rosbags directory
+      - /media/carmaker/Backup/00rosbag_datasets/rosbag_metadata.db:/app/data/rosbag_metadata.db
+
     restart: unless-stopped
     environment:
       - USERNAME=${USER}
       - USER_UID=1000
       - USER_GID=1000
+      - DATABASE_PATH=/app/data/rosbag_metadata.db
     network_mode: host
 
   frontend:
