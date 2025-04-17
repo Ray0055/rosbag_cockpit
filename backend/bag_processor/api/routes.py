@@ -3,7 +3,8 @@ API routes for the RosBag Cockpit application.
 This module defines all the API endpoints for managing and analyzing ROS bag files.
 """
 
-from typing import Any, Dict, List, Optional, Union
+import os
+from typing import Dict, List, Optional, Union
 
 import docker
 from fastapi import APIRouter, Body, HTTPException, Path, Query
@@ -11,29 +12,39 @@ from fastapi import APIRouter, Body, HTTPException, Path, Query
 from bag_processor.api.models import Rosbag
 
 from ..bag_manager.player import RosbagPlayer
+from ..database.db_connection_pool import DBConnectionPool
+from ..database.operations import DatabaseManager
 from .models import DockerContainerConfig
-from .services import DockerService, OpenLoopTestService, RosPublisherService
+from .services import DatabaseService, DockerService, OpenLoopTestService, RosPublisherService
 
 router = APIRouter(prefix="/api")
 
-# # Create connection pool
-# db_conn_pool = DBConnectionPool(
-#     db_url="sqlite:///rosbag_metadata.db",
-#     pool_size=10,
-#     max_overflow=20,
-#     pool_timeout=30,
-#     pool_recycle=1800,
-# )
+dp_path = os.getenv("DATABASE_PATH")
+if dp_path is None:
+    raise ValueError("DATABASE_PATH is not set.")
 
-# # Create database manager with the connection pool
-# db_manager = DatabaseManager(db_conn_pool=db_conn_pool)
-# database_service = DatabaseService(db_manager)
+if not os.path.exists(dp_path):
+    raise ValueError(f"Database path does not exist: {dp_path}")
+
+# Create connection pool
+db_conn_pool = DBConnectionPool(
+    db_url=f"sqlite:///{dp_path}",
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=30,
+    pool_recycle=1800,
+)
+
+# Create database manager with the connection pool
+db_manager = DatabaseManager(db_conn_pool=db_conn_pool)
+database_service = DatabaseService(db_manager)
 
 bag_player = RosbagPlayer()
-database_service = Any
+
 # Initializattion of docker client
 docker_client = docker.from_env()
 docker_service = DockerService(docker_client)
+
 publish_service = RosPublisherService()
 openloop_service = OpenLoopTestService(docker_service, bag_player, database_service)
 
