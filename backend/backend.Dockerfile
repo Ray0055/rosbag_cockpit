@@ -9,7 +9,9 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir \
     "numpy>=1.24.4"  \
     pandas \
-    matplotlib
+    matplotlib \
+    ipykernel \
+    papermill
 
 ARG USERNAME=carmaker
 ARG USER_UID=1000
