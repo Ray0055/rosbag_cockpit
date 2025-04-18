@@ -2,11 +2,16 @@
 FROM comm_pkg:latest
 
 RUN apt-get update && \
-    apt-get install -y git python3-pip && \
+    apt-get install -y git python3-pip python3-tk && \
     pip3 install uv && \
     rm -rf /var/lib/apt/lists/*
 
-ARG USERNAME=driverless
+RUN pip install --no-cache-dir \
+    "numpy>=1.24.4"  \
+    pandas \
+    matplotlib
+
+ARG USERNAME=carmaker
 ARG USER_UID=1000
 ARG USER_GID=1000
 
@@ -31,4 +36,4 @@ RUN uv venv && \
 
 # Start the backend server
 CMD . .venv/bin/activate && \
-    uvicorn bag_processor.api:app --host 0.0.0.0 --port 8000 --reload
+    uvicorn bag_processor.api:app --host 0.0.0.0 --port 8000 --reload --log-level info

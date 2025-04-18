@@ -446,3 +446,34 @@ async def run_open_loop_test_endpoint(
         raise HTTPException(status_code=500, detail=result["message"])
 
     return result
+
+
+@router.post(
+    "/test/analyze",
+)
+async def analyze_rosbag_endpoint(
+    evaluation_folder_path: str = Body(..., title="The path to the evaluation folder"),
+    script_path: str = Body(..., title="The path to the analysis script"),
+    extra_args: List[str] = Body(default=[], title="Additional arguments for the analysis script"),
+):
+    """
+    Analyze a rosbag using a specified script.
+
+    Args:
+        evaluation_folder_path (str): The path to the evaluation folder
+        script_path (str): The path to the analysis script
+        extra_args (List[str]): Additional arguments for the analysis script
+
+    Returns:
+        SuccessResponse: Success message
+    """
+    result = await openloop_service.analyze_rosbag(
+        evaluation_folder_path=evaluation_folder_path,
+        script_path=script_path,
+        extra_args=extra_args,
+    )
+
+    if result["status"] != "success":
+        raise HTTPException(status_code=500, detail=result["message"])
+
+    return result
