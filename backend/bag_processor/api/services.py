@@ -523,6 +523,15 @@ class OpenLoopTestService:
             # 3. After processing all rosbags, copy evaluation data
             self.docker_service.stop_container_by_id(container_id)
 
+            # Copy all pipeline logs
+            pipeline_logs_path = "/home/carmaker/tmp/output/pipeline_logs"
+            self.docker_service.copy_from_container(
+                container_id,
+                "/home/vscode/workspace/pipeline_logs/",
+                f"{pipeline_logs_path}",
+            )
+            open_loop_test_logger.info("Copied pipeline logs from container to host")
+
             # Copy lidar evaluation data
             lidar_output_path = "/home/carmaker/tmp/output/lidar"
             self.docker_service.copy_from_container(
