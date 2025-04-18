@@ -64,6 +64,9 @@ class RosbagPlayer:
             cmd.append("--topics")
             cmd.extend(topics)
 
+        cmd.append("--read-ahead-queue-size")
+        cmd.append("10000")
+
         # Create a shell command with source commands and the ros2 bag play command
         # TODO: If you want to run fastapi in docker, you need to create a image with
         # ros2 installed and comm_pkg installed
