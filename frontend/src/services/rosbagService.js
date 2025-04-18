@@ -81,10 +81,9 @@ export const visualizeRosbagTopics = async (id, topics) => {
   }
 }
 
-// 获取Dashboard统计信息
 export const getDashboardStats = async () => {
   try {
-    return await api.get('/dashboard/stats')
+    return await api.get('/stats')
   } catch (error) {
     throw error
   }

@@ -127,13 +127,12 @@
 
         try {
           // 并行请求数据
-          const [statsData, activitiesData, topicsData] = await Promise.all([
+          const [statsData, topicsData] = await Promise.all([
             getDashboardStats(),
 
           ])
 
           stats.value = statsData
-          activities.value = activitiesData
           popularTopics.value = topicsData
         } catch (err) {
           error.value = err.message || 'Failed to load dashboard data'
