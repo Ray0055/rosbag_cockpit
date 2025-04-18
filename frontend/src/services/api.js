@@ -2,13 +2,14 @@ import axios from 'axios'
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.VUE_APP_API_URL || 'http://localhost:8000/api',
+  baseURL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:8000/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
+console.log('API Base URL:', api.defaults.baseURL)
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
