@@ -26,11 +26,14 @@
             :key="`${index}-${column.key}`"
             class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
           >
-            <!-- 检查是否为话题列并进行特殊渲染 -->
             <template v-if="column.key.startsWith('topic_')">
-              <span class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                {{ item[column.key] || 0 }}
+              <span
+                v-if="item[column.key]"
+                class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
+              >
+                {{ item[column.key] }}
               </span>
+              <span v-else>-</span>
             </template>
             <template v-else>
               {{ item[column.key] }}
