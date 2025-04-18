@@ -35,13 +35,37 @@
     </div>
 
     <div class="bg-white shadow-md rounded-lg p-6">
-      <h2 class="text-xl font-bold mb-4">Place Holder</h2>
+      <h2 class="text-xl font-bold mb-4">Pipeline Status</h2>
 
       <div v-if="loading" class="flex justify-center items-center h-32">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
 
       <div v-else-if="error" class="text-red-500">{{ error }}</div>
+
+      <div v-else class="space-y-4">
+        <div class="flex items-center space-x-2">
+          <img
+            src="https://git.fsintra.net/api/v4/projects/219/jobs/artifacts/x2_dev/raw/job_badge.svg?job=submodules-check"
+            alt="CI/CD Status"
+            class="h-6"
+            @click="openPipelineLink('https://git.fsintra.net/vehicle/as/workspace/commits/x2_dev')"
+            style="cursor: pointer"
+          />
+          <span class="text-sm text-gray-600">Submodule Sync Status</span>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <img
+            src="https://git.fsintra.net/vehicle/as/workspace/badges/x2_dev/pipeline.svg"
+            alt="CI/CD Status"
+            class="h-6"
+            @click="openPipelineLink('https://git.fsintra.net/vehicle/as/workspace/commits/x2_dev')"
+            style="cursor: pointer"
+          />
+          <span class="text-sm text-gray-600">Workspace Status</span>
+        </div>
+      </div>
     </div>
 
     <div class="bg-white shadow-md rounded-lg p-6 md:col-span-2 lg:col-span-1">
@@ -137,6 +161,11 @@ export default {
       loadDashboardData()
     })
 
+    const openPipelineLink = (url) => {
+      if (typeof window !== 'undefined') {
+        window.open(url, '_blank')
+      }
+    }
     return {
       loading,
       error,
@@ -144,6 +173,7 @@ export default {
       formatDate,
       formatFileSize,
       getActivityIcon,
+      openPipelineLink,
     }
   },
 }
