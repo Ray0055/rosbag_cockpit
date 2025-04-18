@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir \
     pandas \
     matplotlib \
     ipykernel \
-    papermill
+    papermill  \
+    nbconvert
 
 ARG USERNAME=carmaker
 ARG USER_UID=1000
@@ -22,7 +23,8 @@ RUN groupadd -g $USER_GID $USERNAME \
     && useradd -u $USER_UID -g $USERNAME -s /bin/bash -m $USERNAME
 
 RUN echo "source /opt/ros/galactic/setup.bash" >> /home/$USERNAME/.bashrc && \
-echo "source /workspace/install/setup.bash" >> /home/$USERNAME/.bashrc
+    echo "source /workspace/install/setup.bash" >> /home/$USERNAME/.bashrc && \
+    echo 'export PATH="$PATH:/home/carmaker/.local/bin"' >> ~/.bashrc
 
 COPY . /home/$USERNAME/rosbag_cockpit/backend
 RUN chown -R $USERNAME:$USERNAME /home/$USERNAME
