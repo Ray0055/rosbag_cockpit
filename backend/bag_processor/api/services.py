@@ -490,7 +490,7 @@ class OpenLoopTestService:
                 open_loop_test_logger.info(
                     f"Processing rosbag {i+1}/{len(rosbag_paths)}: {rosbag_path}"
                 )
-
+                time.sleep(10)  # wait for the container to be ready
                 # Play rosbag
                 self.bag_player.play_bag(
                     bag_path=rosbag_path, topics=["/rslidar_points", "/vehicle_state"]
