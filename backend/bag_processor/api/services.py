@@ -130,9 +130,11 @@ class DockerService:
             self.docker_client.containers.get(container_id)
             return True
         except DockerException as e:
+            docker_service_logger.error(f"Docker Error in checking container: {str(e)}")
+
             if "No such container" in str(e):
                 return False
-            docker_service_logger.error(f"Docker Error in checking container: {str(e)}")
+
             raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
             docker_service_logger.error(f"Error in checking container: {str(e)}")
@@ -177,8 +179,8 @@ class DockerService:
                 raise HTTPException(
                     status_code=409, detail=f"Container with name '{config.name}' already exists"
                 )
-
-            if not self.check_image_exists(image_tag):
+            docker_service_logger.info(f"Started running container with image '{image_tag}'")
+            if self.check_image_exists(image_tag):
                 container = self.docker_client.containers.run(
                     image_tag,
                     detach=True,
@@ -190,7 +192,7 @@ class DockerService:
                     network=config.network,
                     user="1000:1000",  # use the same user as the host
                 )
-
+                docker_service_logger.info(f"Container started with ID: {container.id}")
                 return {"status": "success", "container_id": container.id}
         except ImageNotFound as e:
             docker_service_logger.error(f"Error: Image '{image_tag}' not found. Details: {str(e)}")
@@ -198,7 +200,8 @@ class DockerService:
 
         except DockerException as e:
             docker_service_logger.error(f"Docker Error: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=501, detail=str(e))
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -221,13 +224,12 @@ class DockerService:
                     "message": f"Container {container_id} started successfully",
                 }
             else:
-                # Container doesn't exist, return 404 error
+                docker_service_logger.error(f"Container with ID '{container_id}' not found")
                 raise HTTPException(status_code=404, detail=f"No such container: {container_id}")
         except HTTPException:
             # Re-raise HTTPException, maintaining the original status code
             raise
         except Exception as e:
-            # Other exceptions return 500 error
             docker_service_logger.error(f"Error starting container {container_id}: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
