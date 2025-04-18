@@ -2,8 +2,8 @@ import axios from 'axios'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api', // FastAPI 后端API地址
-  timeout: 30000, // 超时时间30秒
+  baseURL: process.env.VUE_APP_API_BASE_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },

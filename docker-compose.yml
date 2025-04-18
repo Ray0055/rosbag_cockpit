@@ -1,7 +1,7 @@
 services:
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: backend.Dockerfile
     # Add Docker group to container. Be sure to set this in your environment
     # backend container will need access to the Docker socket to run containers
@@ -25,11 +25,10 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: frontend.Dockerfile
     ports:
       - "5173:5173"
     restart: unless-stopped
     depends_on:
       - backend
-    network_mode: host

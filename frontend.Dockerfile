@@ -23,6 +23,6 @@ ENV HOME=/home/vscode
 USER $USERNAME
 
 RUN npm install
+RUN npm run build -- --mode production
 
-# Start the frontend development server
-CMD npm run dev -- --host 0.0.0.0
+CMD ["npx", "serve", "-s", "dist", "-l", "5173"]
