@@ -480,11 +480,13 @@ class OpenLoopTestService:
                 image_tag, container_config
             )
             container_id = container_response.get("container_id")
-            print(f"Started Docker container with ID: {container_id}")
+            open_loop_test_logger.info(f"Started Docker container with ID: {container_id}")
 
             # 2. Process each rosbag file
             for i, rosbag_path in enumerate(rosbag_paths):
-                print(f"Processing rosbag {i+1}/{len(rosbag_paths)}: {rosbag_path}")
+                open_loop_test_logger.info(
+                    f"Processing rosbag {i+1}/{len(rosbag_paths)}: {rosbag_path}"
+                )
 
                 # Play rosbag
                 self.bag_player.play_bag(rosbag_path)
@@ -496,7 +498,7 @@ class OpenLoopTestService:
                     if not status.get("running", False):
                         break
                     else:
-                        print(f"Rosbag {rosbag_path} is still playing...")
+                        open_loop_test_logger.info(f"Rosbag {rosbag_path} is still playing...")
                     await asyncio.sleep(5)  # Use async sleep
 
                 # Stop playback
@@ -509,13 +511,15 @@ class OpenLoopTestService:
                 if i < len(rosbag_paths) - 1:
                     self.docker_service.stop_container_by_id(container_id)
                     self.docker_service.run_container_by_id(container_id)
-                    print(f"Restarted Docker container with ID: {container_id}")
+                    open_loop_test_logger.info(
+                        f"Restarted Docker container with ID: {container_id}"
+                    )
 
             # 3. After processing all rosbags, copy evaluation data
             self.docker_service.stop_container_by_id(container_id)
 
             # Copy lidar evaluation data
-            lidar_output_path = "/home/carmaker/disk2/tmp/output/lidar"
+            lidar_output_path = "/home/carmaker/tmp/output/lidar"
             self.docker_service.copy_from_container(
                 container_id,
                 "/home/vscode/workspace/src/lidar/evaluation/",  # username is set up in Dockerfile
@@ -523,17 +527,18 @@ class OpenLoopTestService:
             )
 
             # Copy estimation evaluation data
-            estimation_output_path = "/home/carmaker/disk2/tmp/output/estimation"
+            estimation_output_path = "/home/carmaker/tmp/output/estimation"
             self.docker_service.copy_from_container(
                 container_id,
                 "/home/vscode/workspace/src/estimation/evaluation/",
                 f"{estimation_output_path}",
             )
 
-            print("Copied evaluation data from container to host")
+            open_loop_test_logger.info("Copied evaluation data from container to host")
+            time.sleep(2)
             # 4. Delete container
             self.docker_service.remove_container_by_id(container_id)
-            print(f"Deleted Docker container with ID: {container_id}")
+            open_loop_test_logger.info(f"Deleted Docker container with ID: {container_id}")
             return {
                 "success": True,
                 "message": "Open loop test completed successfully",
