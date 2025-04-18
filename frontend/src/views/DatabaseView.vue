@@ -130,7 +130,7 @@ export default {
     const rosbags = ref([])
     const allRosbags = ref([])
     const currentPage = ref(1)
-    const itemsPerPage = 10
+    const itemsPerPage = 50
     const totalPages = ref(1)
     const searchTerm = ref('')
     const sortBy = ref('uploadDate')
