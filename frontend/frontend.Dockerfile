@@ -9,10 +9,12 @@ RUN addgroup -g $USER_GID $USERNAME \
     && adduser -u $USER_UID -G $USERNAME -s /bin/sh -D $USERNAME
 
 
-COPY . /home/vscode/rosbag_cockpit
+COPY . /home/vscode/rosbag_cockpit/frontend
 RUN chown -R $USERNAME:$(getent group $USER_GID | cut -d: -f1) /home/vscode
 
 WORKDIR /home/vscode/rosbag_cockpit/frontend
+
+RUN sed -i 's|https://npm.fsintra.net|https://registry.npmjs.org|g' package-lock.json || true
 
 ENV NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
 ENV NPM_CONFIG_ALWAYS_AUTH=false
