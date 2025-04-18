@@ -5,13 +5,28 @@ import os
 import subprocess
 import tarfile
 import threading
+import time
 from typing import Any, Dict, List
 
+from docker.errors import DockerException, ImageNotFound
 from fastapi import HTTPException
 
 from ..api.schema import Rosbag, from_dict_to_database_stats, from_dicts_to_rosbags
 from ..database.operations import DatabaseManager
 from .models import DockerContainerConfig, DockerContainerInfo, DockerImageInfo
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    filename="bag_processor/api/logs/services.log",
+    filemode="a",
+)
+
+dbService_logger = logging.getLogger("db_service")
+docker_service_logger = logging.getLogger("docker_service")
+bag_player_logger = logging.getLogger("bag_player")
+open_loop_test_logger = logging.getLogger("open_loop_test")
 
 
 class DatabaseService:
@@ -85,6 +100,67 @@ class DockerService:
         """
         self.docker_client = docker_client
 
+    def container_name_exists(self, container_name: str) -> bool:
+        """
+        Check if a Docker container exists by name.
+        """
+        try:
+            containers = self.docker_client.containers.list(
+                all=True, filters={"name": container_name}
+            )
+            return len(containers) > 0
+        except DockerException as e:
+            docker_service_logger.error(f"Docker Error in checking container: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            docker_service_logger.error(f"Error in checking container: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def check_container_exists_by_id(self, container_id: str) -> bool:
+        """
+        Check if a Docker container exists by ID.
+
+        Args:
+            container_id: Docker container ID
+
+        Returns:
+            bool: True if container exists, False otherwise
+        """
+        try:
+            self.docker_client.containers.get(container_id)
+            return True
+        except DockerException as e:
+            if "No such container" in str(e):
+                return False
+            docker_service_logger.error(f"Docker Error in checking container: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            docker_service_logger.error(f"Error in checking container: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def check_image_exists(self, image_tag: str) -> bool:
+        """
+        Check if a Docker image exists by its tag.
+
+        Args:
+            image_tag: Docker image tag
+
+        Returns:
+            bool: True if image exists, False otherwise
+        """
+        try:
+            self.docker_client.images.get(image_tag)
+            return True
+        except ImageNotFound:
+            docker_service_logger.error(f"Image '{image_tag}' not found")
+            return False
+        except DockerException as e:
+            docker_service_logger.error(f"Docker Error in checking image: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            docker_service_logger.error(f"Error in checking image: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     def run_container_from_image(self, image_tag: str, config: DockerContainerConfig):
         """
         Run a Docker container with the specified image tag.
@@ -96,20 +172,63 @@ class DockerService:
             dict: Container details
         """
         try:
-            container = self.docker_client.containers.run(
-                image_tag,
-                detach=True,
-                name=config.name,
-                volumes=config.volumes,
-                ports=config.ports,
-                environment=config.environment,
-                command=config.command,
-                network=config.network,
-                user="1000:1000",  # use the same user as the host
-            )
+            if config.name and self.container_name_exists(config.name):
+                docker_service_logger.error(f"Container with name '{config.name}' already exists")
+                raise HTTPException(
+                    status_code=409, detail=f"Container with name '{config.name}' already exists"
+                )
 
-            return {"status": "success", "container_id": container.id}
+            if not self.check_image_exists(image_tag):
+                container = self.docker_client.containers.run(
+                    image_tag,
+                    detach=True,
+                    name=config.name,
+                    volumes=config.volumes,
+                    ports=config.ports,
+                    environment=config.environment,
+                    command=config.command,
+                    network=config.network,
+                    user="1000:1000",  # use the same user as the host
+                )
+
+                return {"status": "success", "container_id": container.id}
+        except ImageNotFound as e:
+            docker_service_logger.error(f"Error: Image '{image_tag}' not found. Details: {str(e)}")
+            raise HTTPException(status_code=404, detail=str(e))
+
+        except DockerException as e:
+            docker_service_logger.error(f"Docker Error: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def run_container_by_id(self, container_id: str):
+        """
+        Run a Docker container by ID.
+
+        Args:
+            container_id: Docker container ID
+
+        Returns:
+            dict: Running status
+        """
+        try:
+            if self.check_container_exists_by_id(container_id):
+                container = self.docker_client.containers.get(container_id)
+                container.start()
+                return {
+                    "status": "success",
+                    "message": f"Container {container_id} started successfully",
+                }
+            else:
+                # Container doesn't exist, return 404 error
+                raise HTTPException(status_code=404, detail=f"No such container: {container_id}")
+        except HTTPException:
+            # Re-raise HTTPException, maintaining the original status code
+            raise
+        except Exception as e:
+            # Other exceptions return 500 error
+            docker_service_logger.error(f"Error starting container {container_id}: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     def list_all_images(self) -> List[DockerImageInfo]:
@@ -156,6 +275,7 @@ class DockerService:
                     )
                 )
             return container_info
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -183,26 +303,6 @@ class DockerService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
             # TODO: thie error handling is not detailed enough
-
-    def run_container_by_id(self, container_id: str):
-        """
-        Run a Docker container by ID.
-
-        Args:
-            container_id: Docker container ID
-
-        Returns:
-            dict: Running status
-        """
-        try:
-            container = self.docker_client.containers.get(container_id)
-            container.start()
-            return {
-                "status": "success",
-                "message": f"Container {container_id} started successfully",
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
 
     def stop_container_by_id(self, container_id: str):
         """
@@ -358,7 +458,6 @@ class OpenLoopTestService:
         """
         container_id = None
         results = []
-
         try:
             # Validate all rosbag paths
             for path in rosbag_paths:
@@ -379,15 +478,15 @@ class OpenLoopTestService:
                 image_tag, container_config
             )
             container_id = container_response.get("container_id")
-            logging.info(f"Started Docker container with ID: {container_id}")
+            print(f"Started Docker container with ID: {container_id}")
 
             # 2. Process each rosbag file
             for i, rosbag_path in enumerate(rosbag_paths):
-                logging.info(f"Processing rosbag {i+1}/{len(rosbag_paths)}: {rosbag_path}")
+                print(f"Processing rosbag {i+1}/{len(rosbag_paths)}: {rosbag_path}")
 
                 # Play rosbag
                 self.bag_player.play_bag(rosbag_path)
-
+                time.sleep(2)  # must wait for rosbag starting to playback
                 # Wait for rosbag playback to finish
                 while True:
                     status = self.bag_player.get_playback_status()
@@ -395,7 +494,7 @@ class OpenLoopTestService:
                     if not status.get("running", False):
                         break
                     else:
-                        logging.info(f"Rosbag {rosbag_path} is still playing...")
+                        print(f"Rosbag {rosbag_path} is still playing...")
                     await asyncio.sleep(5)  # Use async sleep
 
                 # Stop playback
@@ -408,7 +507,7 @@ class OpenLoopTestService:
                 if i < len(rosbag_paths) - 1:
                     self.docker_service.stop_container_by_id(container_id)
                     self.docker_service.run_container_by_id(container_id)
-                    logging.info(f"Restarted Docker container with ID: {container_id}")
+                    print(f"Restarted Docker container with ID: {container_id}")
 
             # 3. After processing all rosbags, copy evaluation data
             self.docker_service.stop_container_by_id(container_id)
@@ -417,26 +516,29 @@ class OpenLoopTestService:
             self.docker_service.copy_from_container(
                 container_id,
                 "/home/vscode/workspace/src/lidar/evaluation/",  # username is set up in Dockerfile
-                "/tmp/output/lidar/",
+                "/home/carmaker/tmp/output/lidar",
             )
 
             # Copy estimation evaluation data
             self.docker_service.copy_from_container(
                 container_id,
                 "/home/vscode/workspace/src/estimation/evaluation/",
-                "/tmp/output/estimation/",
+                "/home/carmaker/tmp/output/estimation",
             )
 
-            logging.info("Copied evaluation data from container to host")
+            print("Copied evaluation data from container to host")
             # 4. Delete container
             self.docker_service.remove_container_by_id(container_id)
-            logging.info(f"Deleted Docker container with ID: {container_id}")
+            print(f"Deleted Docker container with ID: {container_id}")
             return {
                 "success": True,
                 "message": "Open loop test completed successfully",
                 "container_id": container_id,
                 "results": results,
-                "output_paths": ["/tmp/output/lidar/", "/tmp/output/estimation/"],
+                "output_paths": [
+                    "/home/carmaker/disk2/tmp/output",
+                    "/home/carmaker/disk2/tmp/output",
+                ],
             }
         except Exception as e:
             return {
@@ -444,3 +546,83 @@ class OpenLoopTestService:
                 "message": f"Open loop test failed: {str(e)}",
                 "error": str(e),
             }
+
+    async def analyze_rosbag(
+        self,
+        evaluation_folder_path: str,
+        script_path: str,
+        extra_args: List[str] = None,
+    ):
+        """
+        Analyze the rosbag using a specified script.
+
+        Args:
+            evaluation_folder_path: Path to the folder containing evaluation data
+            script_path: Path to the analysis script
+            extra_args: Additional arguments for the script
+
+        Returns:
+            dict: Analysis results
+        """
+        try:
+            # Check if the script exists
+            if not os.path.exists(script_path):
+                open_loop_test_logger.error(f"Script file does not exist: {script_path}")
+                raise ValueError(f"Script file does not exist: {script_path}")
+
+            # Check if the evaluation folder exists
+            if not os.path.exists(evaluation_folder_path):
+                open_loop_test_logger.error(
+                    f"Evaluation folder does not exist: {evaluation_folder_path}"
+                )
+                raise ValueError(f"Evaluation folder does not exist: {evaluation_folder_path}")
+
+            if extra_args is None:
+                extra_args = []
+
+            # Run the analysis script
+            cmd = ["/usr/bin/python3", os.path.basename(script_path)] + extra_args
+            open_loop_test_logger.info(f"Evaluation folder: {evaluation_folder_path}")
+            open_loop_test_logger.info(f"Running analysis script: {' '.join(cmd)}")
+
+            try:
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    cwd=evaluation_folder_path,
+                )
+
+                if result.returncode != 0:
+                    error_msg = (
+                        f"Script execution failed with return code "
+                        f"{result.returncode}: {result.stderr}"
+                    )
+                    open_loop_test_logger.error(error_msg)
+                    raise RuntimeError(error_msg)
+
+                open_loop_test_logger.info("Analysis completed successfully")
+                return {
+                    "status": "success",
+                    "message": "Analysis completed successfully",
+                    "output": result.stdout,
+                }
+
+            except FileNotFoundError as e:
+                error_msg = f"The program or script was not found: {e}"
+                open_loop_test_logger.error(error_msg)
+                raise RuntimeError(error_msg)
+
+            except PermissionError as e:
+                error_msg = f"Permission denied: {e}"
+                open_loop_test_logger.error(error_msg)
+                raise RuntimeError(error_msg)
+
+            except subprocess.TimeoutExpired as e:
+                error_msg = f"Command timed out: {e}"
+                open_loop_test_logger.error(error_msg)
+                raise RuntimeError(error_msg)
+
+        except Exception as e:
+            open_loop_test_logger.exception(f"Error in analyze_rosbag: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))

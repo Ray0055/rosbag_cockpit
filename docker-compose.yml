@@ -11,13 +11,13 @@ services:
     user: "1000:1000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # Mount Docker socket
-      - /home/${USERNAME}/tmp/output:/tmp/output # Mount output directory
-      - /home/${USERNAME}/rosbags:/home/${USERNAME}/rosbags # Mount rosbags directory
+      - /home/${USERNAME}/disk2/tmp/output:/home/${USERNAME}/tmp/output # Mount output directory
+      - /media/carmaker/Backup/00rosbag_datasets:/media/carmaker/Backup/00rosbag_datasets # Mount rosbags directory
       - /media/carmaker/Backup/00rosbag_datasets/rosbag_metadata.db:/app/data/rosbag_metadata.db
 
     restart: unless-stopped
     environment:
-      - USERNAME=${USER}
+      - USERNAME=carmaker
       - USER_UID=1000
       - USER_GID=1000
       - DATABASE_PATH=/app/data/rosbag_metadata.db
@@ -32,3 +32,4 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    network_mode: host
