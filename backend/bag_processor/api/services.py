@@ -515,17 +515,19 @@ class OpenLoopTestService:
             self.docker_service.stop_container_by_id(container_id)
 
             # Copy lidar evaluation data
+            lidar_output_path = "/home/carmaker/disk2/tmp/output/lidar"
             self.docker_service.copy_from_container(
                 container_id,
                 "/home/vscode/workspace/src/lidar/evaluation/",  # username is set up in Dockerfile
-                "/home/carmaker/tmp/output/lidar",
+                f"{lidar_output_path}",
             )
 
             # Copy estimation evaluation data
+            estimation_output_path = "/home/carmaker/disk2/tmp/output/estimation"
             self.docker_service.copy_from_container(
                 container_id,
                 "/home/vscode/workspace/src/estimation/evaluation/",
-                "/home/carmaker/tmp/output/estimation",
+                f"{estimation_output_path}",
             )
 
             print("Copied evaluation data from container to host")
@@ -538,8 +540,8 @@ class OpenLoopTestService:
                 "container_id": container_id,
                 "results": results,
                 "output_paths": [
-                    "/home/carmaker/disk2/tmp/output",
-                    "/home/carmaker/disk2/tmp/output",
+                    f"{lidar_output_path}",
+                    f"{estimation_output_path}",
                 ],
             }
         except Exception as e:
