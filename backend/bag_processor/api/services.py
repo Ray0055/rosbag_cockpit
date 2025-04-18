@@ -493,7 +493,7 @@ class OpenLoopTestService:
 
                 # Play rosbag
                 self.bag_player.play_bag(
-                    rosbag_path=rosbag_path, topics=["/rslidar_points", "/vehicle_state"]
+                    bag_path=rosbag_path, topics=["/rslidar_points", "/vehicle_state"]
                 )
                 time.sleep(2)  # must wait for rosbag starting to playback
                 # Wait for rosbag playback to finish
