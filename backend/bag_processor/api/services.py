@@ -12,6 +12,7 @@ from docker.errors import DockerException, ImageNotFound
 from fastapi import HTTPException
 
 from ..api.schema import Rosbag, from_dict_to_database_stats, from_dicts_to_rosbags
+from ..bag_manager.player import RosbagPlayer
 from ..database.operations import DatabaseManager
 from .models import DockerContainerConfig, DockerContainerInfo, DockerImageInfo
 
@@ -438,7 +439,9 @@ class RosPublisherService:
 
 
 class OpenLoopTestService:
-    def __init__(self, docker_service, bag_player, database_service=None):
+    def __init__(
+        self, docker_service: DockerService, bag_player: RosbagPlayer, database_service=None
+    ):
         self.docker_service = docker_service
         self.bag_player = bag_player
         self.database_service = database_service
@@ -489,7 +492,9 @@ class OpenLoopTestService:
                 )
 
                 # Play rosbag
-                self.bag_player.play_bag(rosbag_path)
+                self.bag_player.play_bag(
+                    rosbag_path=rosbag_path, topics=["/rslidar_points", "/vehicle_state"]
+                )
                 time.sleep(2)  # must wait for rosbag starting to playback
                 # Wait for rosbag playback to finish
                 while True:
