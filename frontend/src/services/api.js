@@ -1,18 +1,18 @@
 import axios from 'axios'
 
-// 创建axios实例
+// Create axios instance
 const api = axios.create({
-  baseURL: process.env.VUE_APP_API_BASE_URL,
+  baseURL: process.env.VUE_APP_API_URL || 'http://localhost:8000/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// 请求拦截器
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // 这里可以添加认证token等
+    // Here you can add authentication token, etc.
     // const token = localStorage.getItem('token')
     // if (token) {
     //   config.headers.Authorization = `Bearer ${token}`
@@ -20,53 +20,53 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
-    // 请求错误处理
+    // Request error handling
     return Promise.reject(error)
   }
 )
 
-// 响应拦截器
+// Response interceptor
 api.interceptors.response.use(
   (response) => {
-    // 如果后端返回标准格式，可以在这里统一处理
+    // If backend returns standard format, you can handle it uniformly here
     return response.data
   },
   (error) => {
-    // 错误处理
+    // Error handling
     if (error.response) {
-      // 服务器返回错误状态码
+      // Server returned error status code
       const status = error.response.status
       const errorMessage = error.response.data?.detail || 'Server error'
 
       if (status === 401) {
-        // 未授权处理
+        // Unauthorized handling
         console.error('Unauthorized access')
-        // 可以在这里跳转到登录页面
+        // You can redirect to login page here
       } else if (status === 403) {
-        // 禁止访问处理
+        // Forbidden access handling
         console.error('Access forbidden')
       } else if (status === 404) {
-        // 资源不存在
+        // Resource not found
         console.error('Resource not found')
       } else if (status === 500) {
-        // 服务器错误
+        // Server error
         console.error('Server error')
       }
 
       return Promise.reject(new Error(errorMessage))
     } else if (error.request) {
-      // 请求已发出但没有收到响应
+      // Request was sent but no response received
       console.error('No response from server')
       return Promise.reject(new Error('No response from server, please check your network'))
     } else {
-      // 请求设置错误
+      // Request setup error
       console.error('Request error', error.message)
       return Promise.reject(error)
     }
   }
 )
 
-// 用于上传文件的接口，支持进度回调
+// Interface for uploading files, supports progress callback
 export const uploadFile = async (url, formData, onUploadProgress) => {
   try {
     const response = await axios.post(`${api.defaults.baseURL}${url}`, formData, {
@@ -77,7 +77,7 @@ export const uploadFile = async (url, formData, onUploadProgress) => {
     })
     return response.data
   } catch (error) {
-    // 使用与上面相同的错误处理逻辑
+    // Use the same error handling logic as above
     if (error.response) {
       const errorMessage = error.response.data?.detail || 'Upload failed'
       throw new Error(errorMessage)

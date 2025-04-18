@@ -59,13 +59,6 @@
             <ul class="divide-y divide-gray-200">
               <li v-for="(topic, index) in rosbagData.topics" :key="index" class="py-2">
                 <div class="flex items-center">
-                  <input
-                    :id="`topic-${index}`"
-                    v-model="selectedTopics"
-                    :value="topic.name"
-                    type="checkbox"
-                    class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
                   <label :for="`topic-${index}`" class="ml-2 text-sm text-gray-700">
                     {{ topic.name }}
                     <span class="text-xs text-gray-500">({{ topic.messageType }})</span>
@@ -76,48 +69,16 @@
           </div>
         </div>
       </div>
-
-      <div>
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-lg font-semibold">Visualization</h3>
-          <div>
-            <button
-              @click="refreshVisualization"
-              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        <div class="border rounded-lg p-4 h-96 bg-gray-50">
-          <!-- 这里是可视化内容 -->
-          <div v-if="selectedTopics.length === 0" class="flex justify-center items-center h-full">
-            <p class="text-gray-500">Select topics to visualize</p>
-          </div>
-          <div v-else-if="visualizationLoading" class="flex justify-center items-center h-full">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
-          </div>
-          <div v-else class="h-full w-full" ref="visualizationContainer">
-            <!-- 可视化内容将在这里渲染 -->
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted, watch } from 'vue'
-import {
-  getRosbagDetails,
-  deleteRosbagById,
-  downloadRosbagFile,
-  visualizeRosbagTopics,
-} from '../services/rosbagService'
+import { ref, reactive, onMounted } from 'vue'
+import { getRosbagDetails, deleteRosbagById, downloadRosbagFile } from '../services/rosbagService'
 
 export default {
-  name: 'Visualization',
+  name: 'RosbagDetails',
   props: {
     rosbagId: {
       type: String,
@@ -137,10 +98,6 @@ export default {
       topics: [],
     })
 
-    const selectedTopics = ref([])
-    const visualizationLoading = ref(false)
-    const visualizationContainer = ref(null)
-
     const loadRosbagData = async () => {
       loading.value = true
       error.value = ''
@@ -148,43 +105,10 @@ export default {
       try {
         const data = await getRosbagDetails(props.rosbagId)
         Object.assign(rosbagData, data)
-
-        // 默认选择前3个话题（如果有的话）
-        if (data.topics && data.topics.length > 0) {
-          selectedTopics.value = data.topics.slice(0, 3).map((topic) => topic.name)
-        }
       } catch (err) {
         error.value = err.message || 'Failed to load rosbag data'
       } finally {
         loading.value = false
-      }
-    }
-
-    const refreshVisualization = async () => {
-      if (selectedTopics.value.length === 0) return
-
-      visualizationLoading.value = true
-
-      try {
-        const visualizationData = await visualizeRosbagTopics(props.rosbagId, selectedTopics.value)
-
-        // 这里将处理可视化数据和渲染图表的逻辑
-        // 注意：具体实现取决于后端返回的数据格式和你选择的可视化库
-        // 如 Chart.js, D3.js 等
-
-        if (visualizationContainer.value) {
-          // 这里是渲染可视化的代码
-          // 例如使用 Chart.js:
-          // new Chart(visualizationContainer.value, {
-          //   type: 'line',
-          //   data: visualizationData,
-          //   options: { ... }
-          // })
-        }
-      } catch (err) {
-        error.value = err.message || 'Failed to load visualization'
-      } finally {
-        visualizationLoading.value = false
       }
     }
 
@@ -227,10 +151,6 @@ export default {
       return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
     }
 
-    watch(selectedTopics, () => {
-      refreshVisualization()
-    })
-
     onMounted(() => {
       loadRosbagData()
     })
@@ -239,10 +159,6 @@ export default {
       loading,
       error,
       rosbagData,
-      selectedTopics,
-      visualizationLoading,
-      visualizationContainer,
-      refreshVisualization,
       downloadRosbag,
       deleteRosbag,
       formatDate,

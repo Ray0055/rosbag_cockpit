@@ -16,7 +16,7 @@
           <input
             v-model="searchTerm"
             type="text"
-            placeholder="Search rosbags..."
+            placeholder="Search rosbags from file path ..."
             class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             @input="handleSearch"
           />
@@ -72,7 +72,7 @@
       />
     </div>
 
-    <!-- 删除确认对话框 -->
+    <!-- Delete confirmation dialog -->
     <div
       v-if="showDeleteConfirm"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -100,7 +100,7 @@
       </div>
     </div>
 
-    <!-- 详情对话框 -->
+    <!-- Details dialog -->
     <div
       v-if="selectedRosbag"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -120,7 +120,7 @@
           </button>
         </div>
 
-        <Visualization :rosbag-id="selectedRosbag.id" />
+        <RosbagDetail :rosbag-id="selectedRosbag.id" />
       </div>
     </div>
   </div>
@@ -129,14 +129,14 @@
 <script>
 import { ref, onMounted } from 'vue'
 import DataTable from '../components/DataTable.vue'
-import Visualization from '../components/Visualization.vue'
+import RosbagDetail from '../components/RosbagDetail.vue'
 import { getRosbags, deleteRosbagById } from '../services/rosbagService'
 
 export default {
   name: 'DatabaseView',
   components: {
     DataTable,
-    Visualization,
+    RosbagDetail: RosbagDetail,
   },
   setup() {
     const loading = ref(true)
@@ -164,7 +164,7 @@ export default {
       { key: 'topic_count', label: 'Topics Count' },
       { key: 'created_at', label: 'Created Date' },
     ])
-    // 2. 修改 loadRosbags 函数
+    // 2. Modify loadRosbags function
     const loadRosbags = async () => {
       loading.value = true
       error.value = ''
@@ -172,14 +172,14 @@ export default {
       try {
         const data = await getRosbags()
 
-        // 首先检查是否有 topic_counts 数据，并创建动态列
+        // First check if there is topic_counts data, and create dynamic columns
         if (data.length > 0 && data[0].topic_counts) {
-          // 提取所有可能存在的话题名称
+          // Extract all possible topic names
           const topicKeys = Object.keys(data[0].topic_counts)
 
-          // 为每个话题创建一个列定义
+          // Create a column definition for each topic
           const topicColumns = topicKeys.map((topic) => {
-            // 创建更友好的显示名称
+            // Create a more friendly display name
             const displayName = topic.substring(1).replace(/\//g, ' ').replace('_', ' ')
             return {
               key: `topic_${topic}`,
@@ -187,30 +187,30 @@ export default {
             }
           })
 
-          // 更新列定义，添加动态列
+          // Update column definitions, add dynamic columns
           columns.value = [
-            ...columns.value.filter((col) => !col.key.startsWith('topic_')), // 移除旧的 topic 列
+            ...columns.value.filter((col) => !col.key.startsWith('topic_')), // Remove old topic columns
             ...topicColumns,
           ]
         }
 
-        // 处理数据格式，使其适合表格显示
+        // Process data format to make it suitable for table display
         allRosbags.value = data.map((bag) => {
-          // 创建基础数据对象
+          // Create base data object
           const bagData = {
             created_at: bag.created_at,
-            duration: bag.duration?.toFixed(2) || 0, // 格式化持续时间
+            duration: bag.duration?.toFixed(2) || 0, // Format duration
             file_path: bag.file_path,
             end_time: bag.end_time,
             id: bag.id,
             map_category: bag.map_category,
             message_count: bag.message_count,
-            size_mb: bag.size_mb?.toFixed(2) || 0, // 格式化大小
+            size_mb: bag.size_mb?.toFixed(2) || 0, // Format size
             start_time: bag.start_time,
             topic_count: bag.topic_count,
           }
 
-          // 为每个话题添加特定字段，以便表格渲染
+          // Add specific fields for each topic for table rendering
           if (bag.topic_counts) {
             Object.entries(bag.topic_counts).forEach(([topic, count]) => {
               bagData[`topic_${topic}`] = count
@@ -228,7 +228,7 @@ export default {
     }
 
     const updateFilteredRosbags = () => {
-      // 过滤
+      // Filter
       let filtered = []
       if (filterBy.value === 'all') {
         filtered = [...allRosbags.value]
@@ -242,10 +242,10 @@ export default {
 
       if (searchTerm.value) {
         const term = searchTerm.value.toLowerCase()
-        filtered = filtered.filter((bag) => bag.name.toLowerCase().includes(term))
+        filtered = filtered.filter((bag) => bag.file_path.toLowerCase().includes(term))
       }
 
-      // 排序
+      // Sort
       filtered.sort((a, b) => {
         if (sortBy.value === 'map_category') {
           return a.map_category.localeCompare(b.map_category)
@@ -267,15 +267,15 @@ export default {
         return 0
       })
 
-      // 更新总页数
+      // Update total pages
       totalPages.value = Math.ceil(filtered.length / itemsPerPage)
 
-      // 分页
+      // Pagination
       const start = (currentPage.value - 1) * itemsPerPage
       const end = start + itemsPerPage
       rosbags.value = filtered.slice(start, end)
 
-      // 确保当前页在有效范围内
+      // Ensure current page is within valid range
       if (currentPage.value > totalPages.value && totalPages.value > 0) {
         currentPage.value = totalPages.value
       }
@@ -321,7 +321,7 @@ export default {
       try {
         await deleteRosbagById(rosbagToDelete.value.id)
 
-        // 从列表中移除
+        // Remove from list
         allRosbags.value = allRosbags.value.filter((bag) => bag.id !== rosbagToDelete.value.id)
         updateFilteredRosbags()
 
