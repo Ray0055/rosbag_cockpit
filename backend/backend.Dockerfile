@@ -22,7 +22,7 @@ RUN groupadd -g $USER_GID $USERNAME \
 RUN echo "source /opt/ros/galactic/setup.bash" >> /home/$USERNAME/.bashrc && \
 echo "source /workspace/install/setup.bash" >> /home/$USERNAME/.bashrc
 
-COPY . /home/$USERNAME/rosbag_cockpit
+COPY . /home/$USERNAME/rosbag_cockpit/backend
 RUN chown -R $USERNAME:$USERNAME /home/$USERNAME
 
 WORKDIR /home/$USERNAME/rosbag_cockpit/backend
