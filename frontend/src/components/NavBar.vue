@@ -12,17 +12,11 @@
 
           <!-- Navigation Links -->
           <div class="hidden md:flex items-center space-x-1">
-            <router-link to="/" class="py-5 px-3 text-white hover:text-blue-200"
-              >Home</router-link
-            >
-            <router-link
-              to="/database"
-              class="py-5 px-3 text-white hover:text-blue-200"
+            <router-link to="/" class="py-5 px-3 text-white hover:text-blue-200">Home</router-link>
+            <router-link to="/database" class="py-5 px-3 text-white hover:text-blue-200"
               >Database</router-link
             >
-            <router-link
-              to="/upload"
-              class="py-5 px-3 text-white hover:text-blue-200"
+            <router-link to="/upload" class="py-5 px-3 text-white hover:text-blue-200"
               >Upload</router-link
             >
           </div>
@@ -55,19 +49,13 @@
 
     <!-- Mobile Menu -->
     <div class="md:hidden" :class="{ hidden: !mobileMenuOpen }">
-      <router-link
-        to="/"
-        class="block py-2 px-4 text-sm text-white hover:bg-blue-700"
+      <router-link to="/" class="block py-2 px-4 text-sm text-white hover:bg-blue-700"
         >Home</router-link
       >
-      <router-link
-        to="/database"
-        class="block py-2 px-4 text-sm text-white hover:bg-blue-700"
+      <router-link to="/database" class="block py-2 px-4 text-sm text-white hover:bg-blue-700"
         >Database</router-link
       >
-      <router-link
-        to="/upload"
-        class="block py-2 px-4 text-sm text-white hover:bg-blue-700"
+      <router-link to="/upload" class="block py-2 px-4 text-sm text-white hover:bg-blue-700"
         >Upload</router-link
       >
     </div>
@@ -76,16 +64,16 @@
 
 <script>
 export default {
-  name: "NavBar",
+  name: 'NavBar',
   data() {
     return {
       mobileMenuOpen: false,
-    };
+    }
   },
   methods: {
     toggleMobileMenu() {
-      this.mobileMenuOpen = !this.mobileMenuOpen;
+      this.mobileMenuOpen = !this.mobileMenuOpen
     },
   },
-};
+}
 </script>

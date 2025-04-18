@@ -23,13 +23,27 @@
         </div>
         <div class="flex-shrink-0">
           <select
+            v-model="filterBy"
+            class="w-full md:w-auto px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @change="handleFilter"
+          >
+            <option value="all">All Maps</option>
+            <option value="skidpad">Skidpad</option>
+            <option value="acceleration">Acceleration</option>
+            <option value="autox">Autox</option>
+            <option value="trackdrive">Trackdrive</option>
+            <option value="undefined">Undefined</option>
+          </select>
+        </div>
+        <div class="flex-shrink-0">
+          <select
             v-model="sortBy"
             class="w-full md:w-auto px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             @change="handleSort"
           >
-            <option value="name">Sort by Name</option>
-            <option value="uploadDate">Sort by Date</option>
-            <option value="size">Sort by Size</option>
+            <option value="map_category">Sort by Map</option>
+            <option value="start_time">Sort by Date</option>
+            <option value="size_mb">Sort by Size</option>
           </select>
         </div>
       </div>
@@ -133,7 +147,8 @@ export default {
     const itemsPerPage = 50
     const totalPages = ref(1)
     const searchTerm = ref('')
-    const sortBy = ref('uploadDate')
+    const sortBy = ref('map_category')
+    const filterBy = ref('all')
     const selectedRosbag = ref(null)
     const showDeleteConfirm = ref(false)
     const rosbagToDelete = ref(null)
@@ -214,7 +229,16 @@ export default {
 
     const updateFilteredRosbags = () => {
       // 过滤
-      let filtered = [...allRosbags.value]
+      let filtered = []
+      if (filterBy.value === 'all') {
+        filtered = [...allRosbags.value]
+      } else {
+        // Filter items based on map_category
+        filtered = allRosbags.value.filter(
+          (item) =>
+            item.map_category && item.map_category.toLowerCase() === filterBy.value.toLowerCase()
+        )
+      }
 
       if (searchTerm.value) {
         const term = searchTerm.value.toLowerCase()
@@ -223,12 +247,22 @@ export default {
 
       // 排序
       filtered.sort((a, b) => {
-        if (sortBy.value === 'name') {
-          return a.name.localeCompare(b.name)
-        } else if (sortBy.value === 'uploadDate') {
-          return new Date(b._rawDate) - new Date(a._rawDate)
-        } else if (sortBy.value === 'size') {
-          return b._rawSize - a._rawSize
+        if (sortBy.value === 'map_category') {
+          return a.map_category.localeCompare(b.map_category)
+        } else if (sortBy.value === 'start_time') {
+          // Convert custom date format to something Date can understand
+          const dateA = a.start_time ? convertCustomDateFormat(a.start_time) : null
+          const dateB = b.start_time ? convertCustomDateFormat(b.start_time) : null
+
+          // Handle cases where dates might be missing
+          if (dateA && dateB) {
+            return dateB - dateA // Sort descending (newer first)
+          }
+          if (!dateA) return 1 // Items with no date go to the end
+          if (!dateB) return -1
+          return 0
+        } else if (sortBy.value === 'size_mb') {
+          return b.size_mb - a.size_mb
         }
         return 0
       })
@@ -264,6 +298,9 @@ export default {
       updateFilteredRosbags()
     }
 
+    const handleFilter = () => {
+      updateFilteredRosbags()
+    }
     const changePage = (page) => {
       currentPage.value = page
       updateFilteredRosbags()
@@ -295,6 +332,17 @@ export default {
       }
     }
 
+    const convertCustomDateFormat = (dateString) => {
+      // supose dateString is "2023-10-01-12-00-00"
+      const parts = dateString.split('-')
+      const year = parseInt(parts[0], 10)
+      const month = parseInt(parts[1], 10) - 1 // Months are 0-based in JavaScript
+      const day = parseInt(parts[2], 10)
+      const hour = parseInt(parts[3], 10)
+      const minute = parseInt(parts[4], 10)
+      const second = parseInt(parts[5], 10)
+      return new Date(year, month, day, hour, minute, second)
+    }
     onMounted(() => {
       loadRosbags()
     })
@@ -308,6 +356,7 @@ export default {
       totalPages,
       searchTerm,
       sortBy,
+      filterBy,
       selectedRosbag,
       showDeleteConfirm,
       rosbagToDelete,
@@ -317,6 +366,7 @@ export default {
       viewRosbag,
       confirmDelete,
       deleteRosbag,
+      handleFilter,
     }
   },
 }
