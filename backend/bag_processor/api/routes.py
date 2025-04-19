@@ -216,6 +216,7 @@ async def get_topics_endpoint(
 )
 async def play_rosbag_endpoint(
     bag_path: Union[str, None] = Query(default=None, title="The ID of the rosbag to play"),
+    topics: Optional[List[str]] = Query(default=None, title="List of topics to play"),
 ):
     """
     Start playing a rosbag.
@@ -230,7 +231,7 @@ async def play_rosbag_endpoint(
     # Check if the rosbag exists
     rosbag = database_service.get_rosbag_by_path_or_404(bag_path)
 
-    bag_player.play_bag(rosbag.file_path)
+    bag_player.play_bag(bag_path=rosbag.file_path, topics=topics)
 
     return {"message": "Started playing rosbag ''", "data": None}
 
