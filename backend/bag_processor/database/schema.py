@@ -71,8 +71,14 @@ class DatabaseSchema:
         Returns:
             True if a new column was added, False if it already existed
         """
-        # Get existing columns
         insp = inspect(conn)
+
+        # First check if the table exists
+        if not insp.has_table("rosbags"):
+            # Initialize the database if the table doesn't exist
+            DatabaseSchema.initialize_database(conn)
+
+        # Get existing columns
         columns = [column["name"] for column in insp.get_columns("rosbags")]
 
         # Add column if it doesn't exist

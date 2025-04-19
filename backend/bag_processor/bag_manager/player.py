@@ -74,7 +74,7 @@ class RosbagPlayer:
         # @attention: This is a workaround for running ros2 in docker container
         shell_cmd = (
             "source /opt/ros/galactic/setup.bash &&"
-            "source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
+            "source /workspace/install/setup.bash && " + " ".join(cmd)
         )
 
         with self.bag_lock:
