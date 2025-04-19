@@ -10,6 +10,11 @@ source .venv/bin/activate
 # Install the project
 uv pip install -e .
 
+# generate database from rosbags folder
+```bash
+uv run main.py --db /path/to/your/db --dir /path/to/your/rosbags/
+```
+
 ## use vscode to launch project
 add following to `launch.json`
 ```json
