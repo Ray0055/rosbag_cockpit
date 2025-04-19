@@ -72,11 +72,10 @@ class RosbagPlayer:
         # ros2 installed and comm_pkg installed
 
         # @attention: This is a workaround for running ros2 in docker container
-        # shell_cmd = (
-        #     "source /opt/ros/galactic/setup.bash &&"
-        #     "source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
-        # )
-        cmd = " ".join(cmd)
+        shell_cmd = (
+            "source /opt/ros/galactic/setup.bash &&"
+            "source /home/driverless/workspace/install/setup.bash && " + " ".join(cmd)
+        )
 
         with self.bag_lock:
             if self.playback_thread and self.playback_thread.is_alive():
@@ -87,7 +86,7 @@ class RosbagPlayer:
             # Start the playback in a separate thread
             self.playback_thread = threading.Thread(
                 target=self._play_bag_thread,
-                args=(cmd,),
+                args=(shell_cmd,),
                 daemon=True,
             )
             self.playback_thread.start()
