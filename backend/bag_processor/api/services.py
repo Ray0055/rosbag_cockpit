@@ -527,7 +527,7 @@ class OpenLoopTestService:
             pipeline_logs_path = "/home/carmaker/tmp/output"
             self.docker_service.copy_from_container(
                 container_id,
-                "/home/vscode/workspace/pipeline_logs/"`,
+                "/home/vscode/workspace/pipeline_logs/",
                 f"{pipeline_logs_path}",
             )
             open_loop_test_logger.info("Copied pipeline logs from container to host")
