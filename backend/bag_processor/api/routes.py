@@ -3,7 +3,6 @@ API routes for the RosBag Cockpit application.
 This module defines all the API endpoints for managing and analyzing ROS bag files.
 """
 
-import logging
 import os
 from typing import Dict, List, Optional, Union
 
@@ -20,6 +19,7 @@ from .exception_handlers import (
     DockerContainerGetError,
     DockerContainerNotFoundError,
 )
+from .logging import server_logger
 from .models import DockerContainerConfig
 from .services import DatabaseService, DockerService, OpenLoopTestService, RosPublisherService
 
@@ -53,16 +53,6 @@ docker_service = DockerService(docker_client)
 
 publish_service = RosPublisherService()
 openloop_service = OpenLoopTestService(docker_service, bag_player, database_service)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    filename="bag_processor/api/logs/server.log",
-    filemode="a",
-)
-
-server_logger = logging.getLogger("server")
 
 
 @router.get("/", response_model=Dict[str, str])
@@ -317,10 +307,13 @@ async def run_docker_endpoint(
         elif container_id is not None:
             return docker_service.run_container_by_id(container_id)
     except DockerContainerNotFoundError as e:
+        server_logger.error(f"Docker container not found: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except DockerContainerGetError as e:
+        server_logger.error(f"Docker container get error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except DockerContainerAccessError as e:
+        server_logger.error(f"Docker container access error: {e}")
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         server_logger.error(f"Unexpected error in run_docker_endpoint: {e}")

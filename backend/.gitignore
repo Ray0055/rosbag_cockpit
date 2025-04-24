@@ -14,3 +14,6 @@ requirements.txt
 frontend/node_modules/
 
 bag_processor/test/test_examples/*
+
+# Ignore all log files
+*.log

@@ -1,6 +1,5 @@
 import asyncio
 import io
-import logging
 import os
 import subprocess
 import tarfile
@@ -19,20 +18,8 @@ from .exception_handlers import (
     DockerContainerGetError,
     DockerContainerNotFoundError,
 )
+from .logging import docker_service_logger, open_loop_test_logger
 from .models import DockerContainerConfig, DockerContainerInfo, DockerImageInfo
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    filename="bag_processor/api/logs/services.log",
-    filemode="a",
-)
-
-dbService_logger = logging.getLogger("db_service")
-docker_service_logger = logging.getLogger("docker_service")
-bag_player_logger = logging.getLogger("bag_player")
-open_loop_test_logger = logging.getLogger("open_loop_test")
 
 
 class DatabaseService:
@@ -136,8 +123,8 @@ class DockerService:
             self.docker_client.containers.get(container_id)
             return True
         except DockerException as e:
-            if "No such container" in str(e):
-                docker_service_logger.info(f"Container with ID {container_id} not found")
+            if "Not Found" in str(e):
+                docker_service_logger.error(f"Container with ID {container_id} not found")
                 return False
             docker_service_logger.error(f"Docker Error in checking container: {str(e)}")
 
@@ -226,7 +213,7 @@ class DockerService:
         """
         try:
             if not self.check_container_exists_by_id(container_id):
-                raise
+                raise DockerContainerNotFoundError(f"Container with ID {container_id} not found")
 
             # already access getting the container, should not raise error
             container = self.docker_client.containers.get(container_id)
@@ -241,6 +228,10 @@ class DockerService:
                 raise DockerContainerAccessError(
                     f"Error starting container {container_id}: {str(e)}"
                 )
+        except DockerContainerNotFoundError:
+            raise
+        except DockerContainerAccessError:
+            raise
         except Exception as e:
             docker_service_logger.error(
                 f"Unexpected error starting container {container_id}: {str(e)}"
