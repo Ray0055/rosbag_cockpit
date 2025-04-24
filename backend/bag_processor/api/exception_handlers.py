@@ -10,3 +10,23 @@ def register_exception_handlers(app):
         return JSONResponse(
             status_code=1001, content={"detail": str(exc), "error_code": exc.error_code}
         )
+
+
+class DockerContainerNotFoundError(Exception):
+    pass
+
+
+class DockerContainerGetError(Exception):
+    """
+    Exception raised when a docker container cannot be found or retrieved.
+    """
+
+    pass
+
+
+class DockerContainerAccessError(Exception):
+    """
+    Exception raised when a docker container cannot be accessed.
+    """
+
+    pass

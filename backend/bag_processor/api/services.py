@@ -14,6 +14,11 @@ from fastapi import HTTPException
 from ..api.schema import Rosbag, from_dict_to_database_stats, from_dicts_to_rosbags
 from ..bag_manager.player import RosbagPlayer
 from ..database.operations import DatabaseManager
+from .exception_handlers import (
+    DockerContainerAccessError,
+    DockerContainerGetError,
+    DockerContainerNotFoundError,
+)
 from .models import DockerContainerConfig, DockerContainerInfo, DockerImageInfo
 
 logging.basicConfig(
@@ -131,15 +136,18 @@ class DockerService:
             self.docker_client.containers.get(container_id)
             return True
         except DockerException as e:
+            if "No such container" in str(e):
+                docker_service_logger.info(f"Container with ID {container_id} not found")
+                return False
             docker_service_logger.error(f"Docker Error in checking container: {str(e)}")
 
-            if "No such container" in str(e):
-                return False
+            raise DockerContainerNotFoundError(
+                f"Container with ID {container_id} not found: {str(e)}"
+            )
 
-            raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
             docker_service_logger.error(f"Error in checking container: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise DockerContainerGetError(f"Error accessing container: {str(e)}")
 
     def check_image_exists(self, image_tag: str) -> bool:
         """
@@ -217,22 +225,29 @@ class DockerService:
             dict: Running status
         """
         try:
-            if self.check_container_exists_by_id(container_id):
-                container = self.docker_client.containers.get(container_id)
+            if not self.check_container_exists_by_id(container_id):
+                raise
+
+            # already access getting the container, should not raise error
+            container = self.docker_client.containers.get(container_id)
+            try:
                 container.start()
                 return {
                     "status": "success",
                     "message": f"Container {container_id} started successfully",
                 }
-            else:
-                docker_service_logger.error(f"Container with ID '{container_id}' not found")
-                raise HTTPException(status_code=404, detail=f"No such container: {container_id}")
-        except HTTPException:
-            # Re-raise HTTPException, maintaining the original status code
-            raise
+            except DockerException as e:
+                docker_service_logger.error(f"Error starting container {container_id}: {str(e)}")
+                raise DockerContainerAccessError(
+                    f"Error starting container {container_id}: {str(e)}"
+                )
         except Exception as e:
-            docker_service_logger.error(f"Error starting container {container_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
+            docker_service_logger.error(
+                f"Unexpected error starting container {container_id}: {str(e)}"
+            )
+            raise DockerContainerAccessError(
+                f"Unexpected error starting container {container_id}: {str(e)}"
+            )
 
     def list_all_images(self) -> List[DockerImageInfo]:
         """
