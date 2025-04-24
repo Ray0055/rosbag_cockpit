@@ -1,5 +1,15 @@
 import logging
 import os
+from enum import Enum
+
+
+class LogType(str, Enum):
+    SERVER = "server"
+    DB = "db_service"
+    DOCKER = "docker_service"
+    BAG = "bag_player"
+    TEST = "open_loop_test"
+
 
 # 确保日志目录存在
 log_dir = "bag_processor/api/logs"
