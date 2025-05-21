@@ -1,33 +1,25 @@
 import asyncio
 import io
-import logging
 import os
 import subprocess
 import tarfile
 import threading
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Union
 
-from docker.errors import DockerException, ImageNotFound
+from docker.errors import APIError, DockerException, ImageNotFound, NotFound
 from fastapi import HTTPException
 
 from ..api.schema import Rosbag, from_dict_to_database_stats, from_dicts_to_rosbags
 from ..bag_manager.player import RosbagPlayer
 from ..database.operations import DatabaseManager
-from .models import DockerContainerConfig, DockerContainerInfo, DockerImageInfo
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    filename="bag_processor/api/logs/services.log",
-    filemode="a",
+from .exception_handlers import (
+    DockerContainerAccessError,
+    DockerContainerGetError,
+    DockerContainerNotFoundError,
 )
-
-dbService_logger = logging.getLogger("db_service")
-docker_service_logger = logging.getLogger("docker_service")
-bag_player_logger = logging.getLogger("bag_player")
-open_loop_test_logger = logging.getLogger("open_loop_test")
+from .logging import docker_service_logger, open_loop_test_logger
+from .models import DockerContainerConfig, DockerContainerInfo, DockerImageInfo
 
 
 class DatabaseService:
@@ -131,15 +123,18 @@ class DockerService:
             self.docker_client.containers.get(container_id)
             return True
         except DockerException as e:
+            if "Not Found" in str(e):
+                docker_service_logger.error(f"Container with ID {container_id} not found")
+                return False
             docker_service_logger.error(f"Docker Error in checking container: {str(e)}")
 
-            if "No such container" in str(e):
-                return False
+            raise DockerContainerNotFoundError(
+                f"Container with ID {container_id} not found: {str(e)}"
+            )
 
-            raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
             docker_service_logger.error(f"Error in checking container: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise DockerContainerGetError(f"Error accessing container: {str(e)}")
 
     def check_image_exists(self, image_tag: str) -> bool:
         """
@@ -217,22 +212,33 @@ class DockerService:
             dict: Running status
         """
         try:
-            if self.check_container_exists_by_id(container_id):
-                container = self.docker_client.containers.get(container_id)
+            if not self.check_container_exists_by_id(container_id):
+                raise DockerContainerNotFoundError(f"Container with ID {container_id} not found")
+
+            # already access getting the container, should not raise error
+            container = self.docker_client.containers.get(container_id)
+            try:
                 container.start()
                 return {
                     "status": "success",
                     "message": f"Container {container_id} started successfully",
                 }
-            else:
-                docker_service_logger.error(f"Container with ID '{container_id}' not found")
-                raise HTTPException(status_code=404, detail=f"No such container: {container_id}")
-        except HTTPException:
-            # Re-raise HTTPException, maintaining the original status code
+            except DockerException as e:
+                docker_service_logger.error(f"Error starting container {container_id}: {str(e)}")
+                raise DockerContainerAccessError(
+                    f"Error starting container {container_id}: {str(e)}"
+                )
+        except DockerContainerNotFoundError:
+            raise
+        except DockerContainerAccessError:
             raise
         except Exception as e:
-            docker_service_logger.error(f"Error starting container {container_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
+            docker_service_logger.error(
+                f"Unexpected error starting container {container_id}: {str(e)}"
+            )
+            raise DockerContainerAccessError(
+                f"Unexpected error starting container {container_id}: {str(e)}"
+            )
 
     def list_all_images(self) -> List[DockerImageInfo]:
         """
@@ -320,11 +326,13 @@ class DockerService:
         try:
             container = self.docker_client.containers.get(container_id)
             container.stop()
+            docker_service_logger.info(f"Container {container_id} stopped successfully")
             return {
                 "status": "success",
                 "message": f"Container {container_id} stopped successfully",
             }
         except Exception as e:
+            docker_service_logger.error(f"Error stopping container {container_id}: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     def copy_from_container(self, container_id: str, source_path: str, dest_path: str):
@@ -360,6 +368,73 @@ class DockerService:
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    def exec_cmd_in_container(
+        self,
+        container_id: str,
+        cmd: Union[str, List[str]],
+        user: Optional[str] = None,
+        workdir: Optional[str] = None,
+    ) -> Dict:
+        """
+        Execute command in a running Docker container.
+
+        Args:
+            container_id: Docker container ID.
+            cmd: Command to execute (string or list of strings).
+            user: User to run the command as (e.g., typically 'root' for permission changes).
+              Defaults to the container's default configured user.
+            workdir: Working directory in the container where the command will be executed.
+
+        Returns:
+            dict: Dictionary containing execution status, exit code, and command output.
+        """
+        try:
+            container = self.docker_client.containers.get(container_id)
+
+            exec_result = container.exec_run(cmd, user=user, workdir=workdir)
+
+            exit_code = exec_result.exit_code
+            output_bytes = exec_result.output
+
+            output_str = (
+                output_bytes.decode("utf-8", errors="replace").strip() if output_bytes else ""
+            )
+
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
+
+            if exit_code == 0:
+                return {
+                    "status": "success",
+                    "exit_code": exit_code,
+                    "output": output_str,
+                    "message": f"Command '{cmd_str}' successfully executed "
+                    f"in container {container_id}.",
+                }
+            else:
+                return {
+                    "status": "failed",
+                    "exit_code": exit_code,
+                    "output": output_str,
+                    "message": f"Command '{cmd_str}' failed "
+                    f"in container {container_id}. Output: {output_str}",
+                }
+
+        except NotFound:
+            docker_service_logger.error(f"Container {container_id} not found.")
+            raise HTTPException(status_code=404, detail=f"Container {container_id} not found.")
+        except APIError as e:
+            docker_service_logger.error(
+                f"Docker API error while executing command in {container_id}: {e}", exc_info=True
+            )  # recommended to log detailed errors
+            raise HTTPException(status_code=500, detail=f"Docker API error: {str(e)}")
+        except Exception as e:
+            docker_service_logger.error(
+                f"Unexpected error executing command in {container_id}: {e}", exc_info=True
+            )  # recommended to log detailed errors
+            raise HTTPException(
+                status_code=500, detail=f"Unexpected error executing command: {str(e)}"
+            )
 
 
 class RosPublisherService:
@@ -523,32 +598,47 @@ class OpenLoopTestService:
             # 3. After processing all rosbags, copy evaluation data
             self.docker_service.stop_container_by_id(container_id)
 
+            # 5. Copy all output files
+            lidar_output_path_workspace = "/home/vscode/workspace/src/lidar/evaluation/"
+            estimation_output_path_workspace = "/home/vscode/workspace/src/estimation/evaluation/"
+            pipeline_logs_path_workspace = "/home/vscode/workspace/pipeline_logs/"
+
             # Copy all pipeline logs
-            pipeline_logs_path = "/home/carmaker/tmp/output"
+            pipeline_logs_path_backend = "/home/carmaker/tmp/output/pipeline_logs"
             self.docker_service.copy_from_container(
                 container_id,
-                "/home/vscode/workspace/pipeline_logs/",
-                f"{pipeline_logs_path}",
+                pipeline_logs_path_workspace,
+                pipeline_logs_path_backend,
             )
-            open_loop_test_logger.info("Copied pipeline logs from container to host")
 
             # Copy lidar evaluation data
-            lidar_output_path = "/home/carmaker/tmp/output/lidar"
+            lidar_output_path_backend = "/home/carmaker/tmp/output/lidar"
             self.docker_service.copy_from_container(
                 container_id,
-                "/home/vscode/workspace/src/lidar/evaluation/",  # username is set up in Dockerfile
-                f"{lidar_output_path}",
+                lidar_output_path_workspace,  # username is set up in Dockerfile
+                lidar_output_path_backend,
             )
 
             # Copy estimation evaluation data
-            estimation_output_path = "/home/carmaker/tmp/output/estimation"
+            estimation_output_path_backend = "/home/carmaker/tmp/output/estimation"
             self.docker_service.copy_from_container(
                 container_id,
-                "/home/vscode/workspace/src/estimation/evaluation/",
-                f"{estimation_output_path}",
+                estimation_output_path_workspace,
+                estimation_output_path_backend,
             )
-
             open_loop_test_logger.info("Copied evaluation data from container to host")
+
+            # change the access of the copied files
+            command_to_run = f"chmod -R 777 {lidar_output_path_backend}"
+            subprocess.run(command_to_run, shell=True)
+
+            command_to_run = f"chmod -R 777 {estimation_output_path_backend}"
+            subprocess.run(command_to_run, shell=True)
+
+            command_to_run = f"chmod -R 777 {pipeline_logs_path_backend}"
+            subprocess.run(command_to_run, shell=True)
+
+            open_loop_test_logger.info("Changed the access of the copied files")
             time.sleep(2)
             # 4. Delete container
             self.docker_service.remove_container_by_id(container_id)
@@ -558,9 +648,9 @@ class OpenLoopTestService:
                 "message": "Open loop test completed successfully",
                 "container_id": container_id,
                 "results": results,
-                "output_paths": [
-                    f"{lidar_output_path}",
-                    f"{estimation_output_path}",
+                "output_paths_in_backend_container": [
+                    lidar_output_path_backend,
+                    estimation_output_path_backend,
                 ],
             }
         except Exception as e:

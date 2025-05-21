@@ -4,6 +4,7 @@ This module defines all the API endpoints for managing and analyzing ROS bag fil
 """
 
 import os
+from collections import deque
 from typing import Dict, List, Optional, Union
 
 import docker
@@ -14,6 +15,12 @@ from bag_processor.api.models import Rosbag
 from ..bag_manager.player import RosbagPlayer
 from ..database.db_connection_pool import DBConnectionPool
 from ..database.operations import DatabaseManager
+from .exception_handlers import (
+    DockerContainerAccessError,
+    DockerContainerGetError,
+    DockerContainerNotFoundError,
+)
+from .logging import LogType, server_logger
 from .models import DockerContainerConfig
 from .services import DatabaseService, DockerService, OpenLoopTestService, RosPublisherService
 
@@ -293,16 +300,25 @@ async def run_docker_endpoint(
     Returns:
         SuccessResponse: Success message
     """
-    if image_tag is not None:
-        if config is None:
-            config = DockerContainerConfig()
-        return docker_service.run_container_from_image(image_tag, config)
-    elif container_id is not None:
-        return docker_service.run_container_by_id(container_id)
-    else:
-        raise HTTPException(
-            status_code=400, detail="Either image_tag or container_id must be provided"
-        )
+    try:
+        if image_tag is not None:
+            if config is None:
+                config = DockerContainerConfig()
+            return docker_service.run_container_from_image(image_tag, config)
+        elif container_id is not None:
+            return docker_service.run_container_by_id(container_id)
+    except DockerContainerNotFoundError as e:
+        server_logger.error(f"Docker container not found: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except DockerContainerGetError as e:
+        server_logger.error(f"Docker container get error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except DockerContainerAccessError as e:
+        server_logger.error(f"Docker container access error: {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        server_logger.error(f"Unexpected error in run_docker_endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -478,3 +494,22 @@ async def analyze_rosbag_endpoint(
         raise HTTPException(status_code=500, detail=result["message"])
 
     return result
+
+
+@router.get("/logs/{log_type}")
+async def get_logs(
+    log_type: str = Path(
+        ..., title="The type of log to retrieve", enum=[log.value for log in LogType]
+    ),
+    lines: int = 100,
+):
+    log_file = f"bag_processor/api/logs/{log_type}.log"
+    if not os.path.exists(log_file):
+        raise HTTPException(status_code=404, detail=f"Log file {log_type} not found")
+
+    try:
+        with open(log_file, "r") as f:
+            last_lines = list(deque(f, maxlen=lines))
+        return {"logs": last_lines}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading logs: {str(e)}")
