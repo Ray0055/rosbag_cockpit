@@ -11,21 +11,21 @@ class LogType(str, Enum):
     TEST = "open_loop_test"
 
 
-# 确保日志目录存在
+# Ensure the log directory exists
 log_dir = "bag_processor/api/logs"
 os.makedirs(log_dir, exist_ok=True)
 
-# 定义共享的格式化器
+# Define shared formatter
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s", "%Y-%m-%d %H:%M:%S")
 
-# 基本配置（用于控制台输出或未指定的日志器）
+# Basic configuration (for console output or unspecified loggers)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-# 创建和配置所有日志器
+# Create and configure all loggers
 loggers = {
     "server": "server.log",
     "db_service": "db_service.log",
@@ -34,23 +34,23 @@ loggers = {
     "open_loop_test": "open_loop_test.log",
 }
 
-# 为每个日志器配置文件处理器
+# Configure file handlers for each logger
 for logger_name, log_file in loggers.items():
-    # 获取日志器
+    # Get logger
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
 
-    # 创建文件处理器
+    # Create file handler
     file_handler = logging.FileHandler(os.path.join(log_dir, log_file), mode="a")
     file_handler.setFormatter(formatter)
 
-    # 添加处理器到日志器
+    # Add handler to logger
     logger.addHandler(file_handler)
 
-    # 防止日志传播到根日志器（避免日志重复）
+    # Prevent log propagation to root logger (avoid duplicate logs)
     logger.propagate = False
 
-# 现在你可以获取这些日志器进行使用
+# Now you can get these loggers for use
 server_logger = logging.getLogger("server")
 dbService_logger = logging.getLogger("db_service")
 docker_service_logger = logging.getLogger("docker_service")

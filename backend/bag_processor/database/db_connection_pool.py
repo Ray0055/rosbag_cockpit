@@ -50,9 +50,13 @@ class DBConnectionPool:
         Yields:
             SQLAlchemy Connection that will be returned to the pool after use
         """
-        connection = self.engine.connect()
+        connection = None
         try:
+            connection = self.engine.connect()
             yield connection
+        except Exception as e:
+            print(f"Error occurred while using the connection: {e}")
+            raise ConnectionError("Failed to get a connection from the pool") from e
         finally:
             connection.close()
 

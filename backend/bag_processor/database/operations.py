@@ -168,25 +168,32 @@ class DatabaseManager:
     def get_database_stats(self) -> Dict[str, Any]:
         """Print statistics about the database."""
 
-        with self.conn_pool.get_connection() as conn:
-            result = conn.execute(text("SELECT COUNT(*) FROM rosbags"))
-            rosbag_count = result.scalar()
+        try:
+            with self.conn_pool.get_connection() as conn:
+                result = conn.execute(text("SELECT COUNT(*) FROM rosbags"))
+                rosbag_count = result.scalar()
 
-            result = conn.execute(
-                text("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rosbags'")
-            )
-            total_columns = result.scalar()
+                result = conn.execute(
+                    text("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rosbags'")
+                )
+                total_columns = result.scalar()
 
-            # TODO: return category counts like:
-            # skidpad: 5
-            # acceleration: 3
+                # TODO: return category counts like:
+                # skidpad: 5
+                # acceleration: 3
 
-            # result = conn.execute(
-            #     "SELECT map_category, COUNT(*) FROM rosbags GROUP BY map_category"
-            # )
-            # category_counts = result.fetchall()
+                # result = conn.execute(
+                #     "SELECT map_category, COUNT(*) FROM rosbags GROUP BY map_category"
+                # )
+                # category_counts = result.fetchall()
 
+                return {
+                    "rosbag_count": rosbag_count,
+                    "total_columns": total_columns,
+                }
+        except Exception as e:
+            print(f"Error occurred while getting database stats: {e}")
             return {
-                "rosbag_count": rosbag_count,
-                "total_columns": total_columns,
+                "rosbag_count": -1,  # Placeholder for error
+                "total_columns": -1,
             }
