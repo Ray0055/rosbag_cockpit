@@ -20,11 +20,14 @@ ARG USER_GID=1000
 
 # Create user and group matching local user
 RUN groupadd -g $USER_GID $USERNAME \
-    && useradd -u $USER_UID -g $USERNAME -s /bin/bash -m $USERNAME
+    && useradd -u $USER_UID -g $USERNAME -s /bin/bash -m $USERNAME \
+    # add them to sudoers
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
 
 RUN echo "source /opt/ros/galactic/setup.bash" >> /home/$USERNAME/.bashrc && \
     echo "source /workspace/install/setup.bash" >> /home/$USERNAME/.bashrc && \
-    echo 'export PATH="$PATH:/home/carmaker/.local/bin"' >> ~/.bashrc
+    echo 'export PATH="$PATH:/home/$USERNAME/.local/bin"' >> /home/$USERNAME/.bashrc
 
 COPY . /home/$USERNAME/rosbag_cockpit/backend
 RUN chown -R $USERNAME:$USERNAME /home/$USERNAME
