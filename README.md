@@ -6,9 +6,9 @@ A full-stack application for managing, visualizing, and testing rosbag files wit
 
 rosbag Cockpit is a comprehensive web application designed to visualize and manage rosbag files in a user-friendly interface. The application consists of two main components:
 
-1. **Backend**: Python-based API for rosbag file processing and data management
+1. **Backend**: Python-based API for rosbag file processing and data management![alt text](backend_api_screenshot.png)
 2. **Frontend**: Vue.js web interface for data visualization and interaction
-
+![alt text](frontend_screenshot.png)
 ## Key Features
 
 - **rosbag Visualization**: A web interface to view and manage all rosbag files
